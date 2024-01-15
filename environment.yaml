@@ -1,0 +1,33 @@
+# Conda environment for okkie.
+#
+# Install:    conda env create -f environment.yaml
+# update:     conda env update -f environment.yaml
+# Activate:   conda activate okkie 
+# Deactivate: conda deactivate
+
+name: okkie
+
+channels:
+  - conda-forge
+  - sherpa
+
+dependencies:
+  # core dependencies
+  - python=3.9
+  - pip
+  - astropy=5.3
+  - gammapy>=1.1
+  # extra dependencies
+  - ipython
+  - jupyter
+  - jupyterlab
+  - naima
+  - pandas
+  - sherpa
+  - healpy
+  # dev dependencies
+  - ruff
+  - tox
+  - pre-commit
+  - pip:
+    - pint-pulsar
