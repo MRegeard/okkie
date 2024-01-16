@@ -1,10 +1,10 @@
-from gammapy.data import EventList
-import astropy.units as u
-from astropy.time import Time
-import pint.models as pmodels
-from pint import toa
 import logging
+import astropy.units as u
 import numpy as np
+import pint.models as pmodels
+from astropy.time import Time
+from gammapy.data import EventList
+from pint import toa
 
 log = logging.getLogger(__name__)
 
