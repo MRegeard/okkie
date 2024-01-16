@@ -8,6 +8,7 @@ known-third-party = ["pytest", "astropy", "scipy", "numpy", "regions"]
 no-lines-before = ["standard-library", "third-party", "first-party", "local-folder"]
 
 [lint]
+select = ["E4", "E7", "E9", "F", "W"]
 ignore = ["E501"] 
 
 [lint.per-file-ignores]
