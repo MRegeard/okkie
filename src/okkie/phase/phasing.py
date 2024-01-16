@@ -1,3 +1,5 @@
+from gammapy.data import EventList
+import astropy.units as u
 from astropy.time import Time
 import pint.models as pmodels
 from pint import toa
@@ -12,7 +14,7 @@ class CPhaseMaker:
         self,
         pint_model,
         observatory,
-        errors,
+        errors=1 * u.us,
         ephem="DE421",
         include_bipm=True,
         include_gps=True,
@@ -33,14 +35,14 @@ class CPhaseMaker:
     @pint_model.setter
     def pint_model(self, model):
         if not isinstance(model, pmodels.TimingModel):
-            raise TypeError("model needs to be an instance of TimingModel.")
+            raise TypeError("Model needs to be an instance of TimingModel.")
         else:
             self._pint_model = model
 
-    def run(self, observation):
+    def compute_phases(self, observation):
         time = self._check_times(observation)
         toas = toa.get_TOAs_array(
-            time=time,
+            times=time,
             obs=self.observatory,
             errors=self.errors,
             ephem=self.ephem,
@@ -49,7 +51,7 @@ class CPhaseMaker:
             planets=self.planets,
         )
 
-        phases = self.model.phase(toas, abs_phase=True)[1]
+        phases = self.pint_model.phase(toas, abs_phase=True)[1]
         phases = np.where(phases < 0.0, phases + 1.0, phases)
 
         return phases
@@ -60,7 +62,9 @@ class CPhaseMaker:
         time_max = time.max().tt.mjd
 
         model_time_range = Time(
-            [self.model.START.value, self.model.FINISH.value], scale="tt", format="mjd"
+            [self.pint_model.START.value, self.pint_model.FINISH.value],
+            scale="tt",
+            format="mjd",
         )
 
         if time_min < model_time_range.value or time_max > model_time_range.value:
@@ -68,3 +72,15 @@ class CPhaseMaker:
                 f"At least one of the time of observation: {observation.obs_id} is outside of the validity range of the timing model"
             )
         return time
+
+    def run(self, observation, column_name="PHASE"):
+        table = observation.events.table
+
+        phases = self.compute_phases(observation)
+        table[column_name] = phases.astype("float64")
+
+        new_events = EventList(table)
+
+        new_observation = observation.copy(in_memory=True, events=new_events)
+
+        return new_observation
