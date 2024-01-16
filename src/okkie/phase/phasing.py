@@ -84,3 +84,6 @@ class CPhaseMaker:
         new_observation = observation.copy(in_memory=True, events=new_events)
 
         return new_observation
+
+    def metadata(self):
+        pass
