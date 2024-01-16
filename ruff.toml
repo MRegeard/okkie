@@ -1,1 +1,12 @@
 target-version = "py39"
+
+[lint.isort]
+known-first-party = ["src"]
+know-third-party = ["pytest", "astropy", "scipy", "numpy", "regions"]
+no-lines-before = ["standard-library", "third-party", "first-party", "local-folder"]
+
+[lint]
+ignore = ["E501", "W503"]
+
+[lint.per-file-ignore]
+"__init__.py" = ["E402"]
