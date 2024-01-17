@@ -4,7 +4,7 @@ fix = true
 
 [lint.isort]
 known-first-party = ["src"]
-known-third-party = ["pytest", "astropy", "scipy", "numpy", "regions"]
+known-third-party = ["pytest", "astropy", "scipy", "numpy", "regions", "pint"]
 no-lines-before = ["standard-library", "third-party", "first-party", "local-folder"]
 
 [lint]
