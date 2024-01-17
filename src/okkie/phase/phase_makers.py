@@ -11,6 +11,9 @@ from pint import toa
 log = logging.getLogger(__name__)
 
 
+__all__ = ["CPhaseMaker"]
+
+
 class CPhaseMaker:
     def __init__(
         self,
