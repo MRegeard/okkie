@@ -1,9 +1,11 @@
 import logging
 import astropy.units as u
 import numpy as np
+import pint
 import pint.models as pmodels
 from astropy.time import Time
 from gammapy.data import EventList
+from gammapy.utils.scripts import make_path
 from pint import toa
 
 log = logging.getLogger(__name__)
@@ -12,7 +14,7 @@ log = logging.getLogger(__name__)
 class CPhaseMaker:
     def __init__(
         self,
-        pint_model,
+        ephemeris_file,
         observatory,
         errors=1 * u.us,
         ephem="DE421",
@@ -20,24 +22,21 @@ class CPhaseMaker:
         include_gps=True,
         planets=True,
     ):
-        self._pint_model = pint_model
+        self.ephemeris_file = make_path(ephemeris_file)
         self.observatory = observatory
         self.errors = errors
         self.ephem = ephem
         self.include_bipm = include_bipm
         self.include_gps = include_gps
         self.planets = planets
+        self.model = pmodels.get_model(self.ephemeris_file)
 
     @property
     def pint_model(self):
-        return self._pint_model
+        return self.model
 
-    @pint_model.setter
-    def pint_model(self, model):
-        if not isinstance(model, pmodels.TimingModel):
-            raise TypeError("Model needs to be an instance of TimingModel.")
-        else:
-            self._pint_model = model
+    def show_model(self):
+        print(self.model)
 
     def compute_phases(self, observation):
         time = self._check_times(observation)
@@ -51,7 +50,7 @@ class CPhaseMaker:
             planets=self.planets,
         )
 
-        phases = self.pint_model.phase(toas, abs_phase=True)[1]
+        phases = self.model.phase(toas, abs_phase=True)[1]
         phases = np.where(phases < 0.0, phases + 1.0, phases)
 
         return phases
@@ -62,7 +61,7 @@ class CPhaseMaker:
         time_max = time.max().tt.mjd
 
         model_time_range = Time(
-            [self.pint_model.START.value, self.pint_model.FINISH.value],
+            [self.model.START.value, self.model.FINISH.value],
             scale="tt",
             format="mjd",
         )
@@ -73,11 +72,20 @@ class CPhaseMaker:
             )
         return time
 
-    def run(self, observation, column_name="PHASE"):
+    def run(
+        self,
+        observation,
+        column_name="PHASE",
+        update_header=True,
+        header_entry_name="PH_LOG",
+    ):
         table = observation.events.table
 
         phases = self.compute_phases(observation)
         table[column_name] = phases.astype("float64")
+
+        if update_header:
+            table.meta[header_entry_name] = self.update_header()
 
         new_events = EventList(table)
 
@@ -85,5 +93,35 @@ class CPhaseMaker:
 
         return new_observation
 
-    def metadata(self):
-        pass
+    def update_header(self, column_name="PHASE", **kwargs):
+        # TODO: Make this customizable
+        key_model = [
+            "PSR",
+            "START",
+            "FINISH",
+            "TZRMDJ",
+            "TZRSITE",
+            "TZRFREQ",
+            "EPHEM",
+            "DM",
+            "RAJ",
+            "DECJ",
+        ]
+
+        meta_dict = dict()
+        meta_dict["COLUMN_NAME"] = column_name
+        meta_dict["EPHEMERIS_FILE"] = str(self.ephemeris_file)
+        meta_dict["PINT_VERS"] = pint.__version__
+
+        for key in key_model:
+            try:
+                meta_dict[key] = getattr(self.model, key).value
+            except AttributeError:
+                log.warning(f"Could not find {key} in model, skipping.")
+                meta_dict[key] = None
+
+        meta_dict["CREATION_DATE"] = Time.now().mjd
+
+        meta_dict.update(kwargs)
+
+        return str(meta_dict)
