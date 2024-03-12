@@ -1,3 +1,3 @@
-from .phase_makers import PhaseMaker
+from .phase_makers import FermiPhaseMaker, PhaseMaker
 
-__all__ = ["PhaseMaker"]
+__all__ = ["PhaseMaker", "FermiPhaseMaker"]

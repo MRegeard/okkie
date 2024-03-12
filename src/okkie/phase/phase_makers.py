@@ -14,7 +14,7 @@ from pint.observatory.satellite_obs import get_satellite_observatory
 log = logging.getLogger(__name__)
 
 
-__all__ = ["PhaseMaker"]
+__all__ = ["PhaseMaker", "FermiPhaseMaker"]
 
 
 class PhaseMaker:
@@ -227,6 +227,25 @@ class FermiPhaseMaker:
             hdulist.writeto(
                 filename, overwrite=True, checksum=True, output_verify="warn"
             )
+
+    def run(
+        self,
+        filename,
+        column_name="PULSE_PHASE",
+        overwrite=True,
+        kwargs_meta=None,
+        kwargs_phase=None,
+    ):
+        kwargs_meta = kwargs_meta or {}
+        kwargs_phase = kwargs_phase or {}
+
+        self.compute_phase(**kwargs_phase)
+        self.write_column_and_meta(
+            filename=filename,
+            column_name=column_name,
+            overwrite=overwrite,
+            **kwargs_meta,
+        )
 
     @staticmethod
     def _check_column_name(event_hdu, column_name):
