@@ -72,7 +72,9 @@ class PhaseMaker:
             format="mjd",
         )
 
-        if time_min < model_time_range.value or time_max > model_time_range.value:
+        if (time_min < model_time_range[0].value) or (
+            time_max > model_time_range[1].value
+        ):
             log.warning(
                 f"At least one of the time of observation: {observation.obs_id} is outside of the validity range of the timing model"
             )
