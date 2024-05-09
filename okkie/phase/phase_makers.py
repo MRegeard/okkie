@@ -18,6 +18,27 @@ __all__ = ["PhaseMaker", "FermiPhaseMaker"]
 
 
 class PhaseMaker:
+    """
+    Class that compute the phase pulsar using pint.
+
+    Parameters
+    ----------
+    ephemeris_file: str
+        The path to the ephemeris file that will be used for phase folding.
+    observatory: str
+        The observatory that acquired the data to be folded.
+    errors: `~astropy.units.Quantity`, optional
+        The errors of the time. Default is 1 microsecond.
+    ephem: str, optinal
+        The solar system ephemeris to use. Default is "DE421".
+    include_bipm: bool, optional
+        Whether to use bipm clock. Default is True.
+    include_gps: bool, optional
+        Whether to use gps clock. Default is True.
+    planets: bool, optional
+        Whether to include shapiro corrections. Default is True.
+    """
+
     def __init__(
         self,
         ephemeris_file,
@@ -39,12 +60,27 @@ class PhaseMaker:
 
     @property
     def pint_model(self):
+        """The pint model associated to the ephemeris file (`~pint.models`)."""
         return self.model
 
-    def show_model(self):
+    def print_model(self):
+        """Print the model."""
         print(self.model)
 
     def compute_phases(self, observation):
+        """Compute the pulsar phases for a given observation.
+
+        Parameters
+        ----------
+        observation: `~gammapy.data.Observation`
+            The observation that contains the `~gammapy.data.EventList` for which
+            pulsar phases must be computed.
+
+        Returns
+        -------
+        phases: `~numpy.ndarray`
+            Array of pulsar phases for each events in the `~gammapy.data.EventList`.
+        """
         time = self._check_times(observation)
         toas = toa.get_TOAs_array(
             times=time,
@@ -62,6 +98,21 @@ class PhaseMaker:
         return phases
 
     def _check_times(self, observation):
+        """Check that the minimum and maximum time in the `~gammapy.data.EventList`
+        are within the START time and FINISH time of the ephemeris. If this is not
+        the case, a warning will be raise to inform the user.
+
+        Paramters
+        ---------
+        observation: `~gammapy.data.Observation`
+            The observation that contains the `~gammapy.data.EventList` for which
+            pulsar phases must be computed.
+
+        Returns
+        -------
+        time: `~astropy.time.Time`
+            The unchanged time object contained in the `~gammapy.data.EventList`.
+        """
         time = observation.events.time
         time_min = time.min().tt.mjd
         time_max = time.max().tt.mjd
@@ -76,7 +127,7 @@ class PhaseMaker:
             time_max > model_time_range[1].value
         ):
             log.warning(
-                f"At least one of the time of observation: {observation.obs_id} is outside of the validity range of the timing model"
+                f"At least one of the time of observation: {observation.obs_id} is outside of the validity range of the timing model."
             )
         return time
 
@@ -85,15 +136,39 @@ class PhaseMaker:
         observation,
         column_name="PHASE",
         update_header=True,
-        header_entry_name="PH_LOG",
+        header_keyword="PH_LOG",
     ):
+        """Compute the pulsar phases and create a new `~gammapy.data.Observation`
+        object with a new `~gammapy.data.EventList` containing the computed phases as
+        well as an updated header.
+
+        Parameters
+        ----------
+        observation: `~gammapy.data.Observation`
+            The observation that contains the `~gammapy.data.EventList` for which
+            pulsar phases must be computed.
+        column_name: str, optional
+            The name of the column to write the phase in the EventList table. Default
+            is "PHASE".
+        update_header: bool, optional
+            Whether to update the header of the EventList or not. Default is True.
+        header_keyword:
+            The name of the header keyword to write metadata information. Default is
+            "PH_LOG".
+
+        Returns
+        -------
+        observation: `~gammapy.data.Observation`
+            The observation that contains the `~gammapy.data.EventList` for which
+            pulsar phases must be computed.
+        """
         table = observation.events.table
 
         phases = self.compute_phases(observation)
         table[column_name] = phases.astype("float64")
 
         if update_header:
-            table.meta[header_entry_name] = self.update_header()
+            table.meta[header_keyword] = self.update_header()
 
         new_events = EventList(table)
 
@@ -102,6 +177,22 @@ class PhaseMaker:
         return new_observation
 
     def update_header(self, column_name="PHASE", **kwargs):
+        """Update the `~gammapy.data.EventList` header with pulsar phase metadata
+        information.
+
+        Parameters
+        ----------
+        column_name: str, optional
+            The name of the column where the pulsar phases are written. Default is
+            "PHASE".
+        kwargs: dictionary; optional
+            Extra field to add to the header.
+
+        Returns
+        -------
+        string_meta_dict: str
+            A string of the dictionary that will be written to the EventList header.
+        """
         # TODO: Make this customizable
         key_model = [
             "PSR",
