@@ -323,7 +323,7 @@ class FermiPhaseMaker:
 
     def run(
         self,
-        filename,
+        filename=None,
         column_name="PULSE_PHASE",
         overwrite=True,
         kwargs_meta=None,
