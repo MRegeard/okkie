@@ -167,6 +167,16 @@ class VisuPhasogram:
                 off[0], off[1], alpha=0.25, color="white", hatch="x", ec="k", **kwargs
             )
 
+    def set_on_patch(self, **kwargs):
+        if self.on_phase is None:
+            raise ValueError("No signal phase interval (on_phase) defined.")
+        ons = np.array(self.on_phase)
+        for i in range(1, self.nperiod):
+            ons = np.concatenate([ons, ons + i])
+        ons = self._merge_phase_intervals(ons)
+        for on in ons:
+            self.ax.axvspan(on[0], on[1], alpha=0.25, color="gray", **kwargs)
+
     @staticmethod
     def _merge_phase_intervals(phase_intervals):
         """Merge phase intervals that overlap.
