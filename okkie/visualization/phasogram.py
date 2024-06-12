@@ -7,8 +7,9 @@ __all__ = ["VisuPhasogram"]
 class VisuPhasogram:
     """A class that gather useful methods to plot phasograms.
 
-    #TODO(@MRegeard): Use self._was_called to check if the plot method was called
+    # TODO(@MRegeard): Use self._was_called to check if the plot method was called
     in place where it is needed.
+    # TDOD(@MRegeard): Support weigths in n_bkg.
 
     Parameters
     ----------
@@ -98,7 +99,9 @@ class VisuPhasogram:
             return np.sum(
                 [
                     len(self.events.select_parameter(self.phase_column_name, off).time)
-                    for off in (np.array(self.off_phase) + self.offset) % 1
+                    for off in self._split_phase_intervals(
+                        list(np.array(self.off_phase) + self.offset)
+                    )
                 ]
             )
 
