@@ -15,6 +15,8 @@ from gammapy.modeling.models import (
 from gammapy.utils.scripts import make_name
 from .phase import PhaseModel
 
+__all__ = ["SourceModel"]
+
 
 class SourceModel(CovarianceMixin, ModelBase):
     tag = ["SourceModel", "source-model"]

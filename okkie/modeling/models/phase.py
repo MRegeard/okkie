@@ -10,6 +10,17 @@ from gammapy.modeling.models import ModelBase
 log = logging.getLogger(__name__)
 
 
+__all__ = [
+    "PhaseModel",
+    "ConstantPhaseModel",
+    "CompoundPhaseModel",
+    "LorentzianPhaseModel",
+    "AsymmetricLorentzianPhaseModel",
+    "GaussianPhaseModel",
+    "AssymetricGaussianPhaseModel",
+]
+
+
 class PhaseModel(ModelBase):
     """Phase model base class."""
 
