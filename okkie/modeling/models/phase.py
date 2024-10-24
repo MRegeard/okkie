@@ -17,7 +17,7 @@ __all__ = [
     "LorentzianPhaseModel",
     "AsymmetricLorentzianPhaseModel",
     "GaussianPhaseModel",
-    "AssymetricGaussianPhaseModel",
+    "AsymetricGaussianPhaseModel",
 ]
 
 
@@ -331,10 +331,10 @@ class GaussianPhaseModel(PhaseModel):
         )
 
 
-class AssymetricGaussianPhaseModel(PhaseModel):
+class AsymetricGaussianPhaseModel(PhaseModel):
     """Asymmetric Gaussian phase model."""
 
-    tag = ["AssymetricGaussianPhaseModel", "asymgauss"]
+    tag = ["AsymetricGaussianPhaseModel", "asymgauss"]
     amplitude = Parameter("amplitude", 1, is_norm=True)
     center = Parameter("center", 0.5)
     sigma_1 = Parameter("sigma_1", 0.1)

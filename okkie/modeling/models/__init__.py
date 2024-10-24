@@ -1,5 +1,5 @@
 from .phase import (
-    AssymetricGaussianPhaseModel,
+    AsymetricGaussianPhaseModel,
     AsymmetricLorentzianPhaseModel,
     CompoundPhaseModel,
     ConstantPhaseModel,
@@ -15,6 +15,6 @@ __all__ = [
     "LorentzianPhaseModel",
     "AsymmetricLorentzianPhaseModel",
     "GaussianPhaseModel",
-    "AssymetricGaussianPhaseModel",
+    "AsymetricGaussianPhaseModel",
     "SourceModel",
 ]
