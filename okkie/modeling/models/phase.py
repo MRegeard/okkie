@@ -4,6 +4,7 @@ import astropy.units as u
 import matplotlib.pyplot as plt
 import numpy as np
 from gammapy.maps import MapAxis
+from gammapy.modeling import Parameter
 from gammapy.modeling.models import ModelBase
 
 log = logging.getLogger(__name__)
@@ -214,7 +215,13 @@ class PhaseModel(ModelBase):
 
 
 class ConstantPhaseModel(PhaseModel):
-    pass
+    tag = ["ConstantPhaseModel", "const"]
+    const = Parameter("const", "1")
+
+    @staticmethod
+    def evaluate(phase, const):
+        """Evaluate the model (static function)."""
+        return np.ones(np.atleast_1d(phase).shape) * const
 
 
 class CompoundPhaseModel(PhaseModel):
