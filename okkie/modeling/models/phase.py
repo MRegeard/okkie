@@ -106,7 +106,7 @@ class PhaseModel(ModelBase):
         counts, counts_error : tuple of `~astropy.units.Quantity`
             Tuple of counts and counts error.
         """
-        return self._propagate_error(epsilon=epsilon, fct=self, energy=phase)
+        return self._propagate_error(epsilon=epsilon, fct=self, phase=phase)
 
     def integral(self, phase_min, phase_max):
         r"""Integrate phase model numerically if no analytical solution defined.
@@ -224,6 +224,10 @@ class PhaseModel(ModelBase):
         ax.set_xlabel("Phase")
         ax.set_ylabel("Counts")
 
+    def _get_plot(self, phase):
+        # TODO: handle case with several period"
+        return self.evaluate_error(phase.center)
+
 
 class ConstantPhaseModel(PhaseModel):
     tag = ["ConstantPhaseModel", "const"]
@@ -302,16 +306,17 @@ class AsymmetricLorentzianPhaseModel(PhaseModel):
 
     tag = ["AsymmetricLorentzianPhaseModel", "asymlor"]
     amplitude = Parameter("amplitude", 1, is_norm=True)
-    center = Parameter("center", 0.5)
-    width_1 = Parameter("width_1", 0.1)
-    width_2 = Parameter("width_2", 0.1)
+    mean = Parameter("mean", 0.5)
+    sigma_1 = Parameter("sigma_1", 0.1)
+    sigma_2 = Parameter("sigma_2", 0.1)
 
     @staticmethod
-    def evaluate(phase, center, amplitude, width_1, width_2):
+    def evaluate(phase, mean, amplitude, sigma_1, sigma_2):
         """Evaluate the model"""
-        l1 = amplitude / (1 + np.power((phase - center) / width_1, 2))
-        l2 = amplitude / (1 + np.power((phase - center) / width_2, 2))
-        return np.where(phase < center, l1, l2)
+        l1 = 1 / (1 + ((phase - mean) / sigma_1) ** 2)
+        l2 = 1 / (1 + ((phase - mean) / sigma_2) ** 2)
+
+        return amplitude * np.where(phase < mean, l1, l2)
 
 
 class GaussianPhaseModel(PhaseModel):
@@ -324,32 +329,24 @@ class GaussianPhaseModel(PhaseModel):
 
     @staticmethod
     def evaluate(phase, amplitude, mean, sigma):
-        return (
-            amplitude
-            / (sigma * np.sqrt(2 * np.pi))
-            * np.exp(-((phase - mean) ** 2) / (2 * sigma**2))
-        )
+        return amplitude * np.exp(-((phase - mean) ** 2) / (2 * sigma**2))
 
 
 class AsymetricGaussianPhaseModel(PhaseModel):
-    """Asymmetric Gaussian phase model."""
+    """Asymmetric Gaussian phase model.
+
+    From 3PC Paper Eq. 10.
+    """
 
     tag = ["AsymetricGaussianPhaseModel", "asymgauss"]
     amplitude = Parameter("amplitude", 1, is_norm=True)
-    center = Parameter("center", 0.5)
+    mean = Parameter("mean", 0.5)
     sigma_1 = Parameter("sigma_1", 0.1)
     sigma_2 = Parameter("sigma_2", 0.1)
 
     @staticmethod
     def evaluate(phase, amplitude, mean, sigma_1, sigma_2):
-        g1 = (
-            amplitude
-            / (sigma_1 * np.sqrt(2 * np.pi))
-            * np.exp(-((phase - mean) ** 2) / (2 * sigma_1**2))
-        )
-        g2 = (
-            amplitude
-            / (sigma_2 * np.sqrt(2 * np.pi))
-            * np.exp(-((phase - mean) ** 2) / (2 * sigma_2**2))
-        )
-        return np.where(phase < mean, g1, g2)
+        g1 = np.exp(-((phase - mean) ** 2) / (2 * sigma_2**2))
+        g2 = np.exp(-((phase - mean) ** 2) / (2 * sigma_2**2))
+
+        return amplitude * np.where(phase < mean, g1, g2)

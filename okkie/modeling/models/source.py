@@ -37,6 +37,7 @@ class SourceModel(ModelBase):
         self.spatial_model = spatial_model
         self.spectral_model = spectral_model
         self.temporal_model = temporal_model
+        self.phase_model = phase_model
         self._name = make_name(name)
 
         if apply_irf is None:
@@ -69,7 +70,15 @@ class SourceModel(ModelBase):
             ref_unit = u.Unit("cm-2 s-1 MeV-1")
         else:
             ref_unit = u.Unit("")
-        obt_unit = self.spectral_model(axis.center).unit
+
+        if (
+            (self.spectral_model is None)
+            and (self.spatial_model is None)
+            and (self.temporal_model is None)
+        ):
+            return None
+        if self.spectral_model:
+            obt_unit = self.spectral_model(axis.center).unit
 
         if self.spatial_model:
             obt_unit = obt_unit * self.spatial_model.evaluate_geom(geom).unit
@@ -103,13 +112,17 @@ class SourceModel(ModelBase):
     def parameters(self):
         parameters = []
 
-        parameters.append(self.spectral_model.parameters)
+        if self.spectral_model is not None:
+            parameters.append(self.spectral_model.parameters)
 
         if self.spatial_model is not None:
             parameters.append(self.spatial_model.parameters)
 
         if self.temporal_model is not None:
             parameters.append(self.temporal_model.parameters)
+
+        if self.phase_model is not None:
+            parameters.append(self.phase_model.parameters)
 
         return Parameters.from_stack(parameters)
 
