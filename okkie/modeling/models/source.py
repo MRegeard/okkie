@@ -1,8 +1,7 @@
 import astropy.units as u
 from astropy.time import Time
 from gammapy.maps import MapAxis, WcsGeom
-from gammapy.modeling import Parameters
-from gammapy.modeling.covariance import CovarianceMixin
+from gammapy.modeling import CovarianceMixin, Parameters
 from gammapy.modeling.models import (
     ModelBase,
     Models,
@@ -14,6 +13,8 @@ from gammapy.modeling.models import (
 )
 from gammapy.utils.scripts import make_name
 from .phase import PhaseModel
+
+# TODO: import CovarianceMixin to gammapy.modeling.covariance in gammapy 1.3
 
 __all__ = ["SourceModel"]
 
