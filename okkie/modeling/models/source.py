@@ -225,3 +225,50 @@ class SourceModel(CovarianceMixin, ModelBase):
             f"temporal_model={self.temporal_model!r})"
             f"phase_model={self.phase_model!r})"
         )
+
+    def evaluate(self, lon=None, lat=None, energy=None, time=None, phase=None):
+        """Evaluate the model at given points.
+
+        The model evaluation follows numpy broadcasting rules.
+
+        Return differential surface brightness cube.
+        At the moment in units: ``cm-2 s-1 TeV-1 deg-2``.
+
+        Parameters
+        ----------
+        lon, lat : `~astropy.units.Quantity`, optional
+            Spatial coordinates. Default is None.
+        energy : `~astropy.units.Quantity`, optional
+            Energy coordinate. Default is None.
+        time: `~astropy.time.Time`, optional
+            Time coordinate. Default is None.
+        phase: `~numpy.ndarray`
+            Phase coordinate. Default is None.
+
+        Returns
+        -------
+        value : `~astropy.units.Quantity`
+            Model value at the given point.
+        """
+        if (lon and lat and energy and time and phase) is None:
+            raise ValueError("Found no axis to evaluate models")
+        value = 1
+        if (self.spectral_model is not None) and (energy is not None):
+            value = self.spectral_model(energy)  # pylint:disable=not-callable
+        # TODO: case if self.temporal_model is not None, introduce time in arguments ?
+
+        if (self.spatial_model is not None) and ((lon and lat) is not None):
+            if self.spatial_model.is_energy_dependent and (energy is not None):
+                spatial = self.spatial_model(lon, lat, energy)
+            else:
+                spatial = self.spatial_model(lon, lat)
+
+            value = value * spatial  # pylint:disable=not-callable
+
+        if (self.temporal_model is not None) and (time is not None):
+            value = value * self.temporal_model(time)
+
+        if (self.phase_model is not None) and (phase is not None):
+            value = value * self.phase_model(phase)
+
+        return value
