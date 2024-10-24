@@ -1,7 +1,7 @@
 import astropy.units as u
 from astropy.time import Time
 from gammapy.maps import MapAxis, WcsGeom
-from gammapy.modeling import CovarianceMixin, Parameters
+from gammapy.modeling import Parameters
 from gammapy.modeling.models import (
     ModelBase,
     Models,
@@ -19,7 +19,7 @@ from .phase import PhaseModel
 __all__ = ["SourceModel"]
 
 
-class SourceModel(CovarianceMixin, ModelBase):
+class SourceModel(ModelBase):
     tag = ["SourceModel", "source-model"]
     _apply_irf_default = {"exposure": True, "psf": True, "edisp": True}
 
