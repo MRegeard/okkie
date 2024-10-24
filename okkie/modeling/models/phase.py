@@ -225,4 +225,120 @@ class ConstantPhaseModel(PhaseModel):
 
 
 class CompoundPhaseModel(PhaseModel):
-    pass
+    tag = ["CompoundPhaseModel", "compound"]
+
+    def __init__(self, model1, model2, operator):
+        self.model1 = model1
+        self.model2 = model2
+        self.operator = operator
+        super().__init__()
+
+    @property
+    def _models(self):
+        return [self.model1, self.model2]
+
+    @property
+    def parameters(self):
+        return self.model1.parameters + self.model2.parameters
+
+    @property
+    def parameters_unique_names(self):
+        names = []
+        for idx, model in enumerate(self._models):
+            for par_name in model.parameters_unique_names:
+                components = [f"model{idx+1}", par_name]
+                name = ".".join(components)
+                names.append(name)
+        return names
+
+    def __str__(self):
+        return (
+            f"{self.__class__.__name__}\n"
+            f"    Component 1 : {self.model1}\n"
+            f"    Component 2 : {self.model2}\n"
+            f"    Operator : {self.operator.__name__}\n"
+        )
+
+    def __call__(self, energy):
+        val1 = self.model1(energy)
+        val2 = self.model2(energy)
+        return self.operator(val1, val2)
+
+    def evaluate(self, phase, *args):
+        args1 = args[: len(self.model1.parameters)]
+        args2 = args[len(self.model1.parameters) :]
+        val1 = self.model1.evaluate(phase, *args1)
+        val2 = self.model2.evaluate(phase, *args2)
+        return self.operator(val1, val2)
+
+
+class LorentzianPhaseModel(PhaseModel):
+    """Lorentzian phase model."""
+
+    tag = ["LorentzianphaseModel", "lor"]
+    amplitude = Parameter("amplitude", 1, is_norm=True)
+    center = Parameter("center", 0)
+    width = Parameter("width", 0.1)
+
+    @staticmethod
+    def evaluate(phase, center, amplitude, width):
+        """Evaluate the model"""
+        return amplitude / (1 + np.power((phase - center) / width, 2))
+
+
+class AsymmetricLorentzianPhaseModel(PhaseModel):
+    """Asymmetric Lorentzian phase model."""
+
+    tag = ["AsymmetricLorentzianPhaseModel", "asymlor"]
+    amplitude = Parameter("amplitude", 1, is_norm=True)
+    center = Parameter("center", 0.5)
+    width_1 = Parameter("width_1", 0.1)
+    width_2 = Parameter("width_2", 0.1)
+
+    @staticmethod
+    def evaluate(phase, center, amplitude, width_1, width_2):
+        """Evaluate the model"""
+        l1 = amplitude / (1 + np.power((phase - center) / width_1, 2))
+        l2 = amplitude / (1 + np.power((phase - center) / width_2, 2))
+        return np.where(phase < center, l1, l2)
+
+
+class GaussianPhaseModel(PhaseModel):
+    """Gaussian phase model."""
+
+    tag = ["GaussianPhaseModel", "gauss"]
+    amplitude = Parameter("amplitude", 1, is_norm=True)
+    mean = Parameter("mean", 0.5)
+    sigma = Parameter("sigma", 0.1)
+
+    @staticmethod
+    def evaluate(phase, amplitude, mean, sigma):
+        return (
+            amplitude
+            / (sigma * np.sqrt(2 * np.pi))
+            * np.exp(-((phase - mean) ** 2) / (2 * sigma**2))
+        )
+
+
+class AssymetricGaussianPhaseModel(PhaseModel):
+    """Asymmetric Gaussian phase model."""
+
+    tag = ["AssymetricGaussianPhaseModel", "asymgauss"]
+    amplitude = Parameter("amplitude", 1, is_norm=True)
+    center = Parameter("center", 0.5)
+    sigma_1 = Parameter("sigma_1", 0.1)
+    sigma_2 = Parameter("sigma_2", 0.1)
+
+    @staticmethod
+    def evaluate(phase, amplitude, mean, sigma_1, sigma_2):
+        g1 = (
+            amplitude
+            / (sigma_1 * np.sqrt(2 * np.pi))
+            * np.exp(-((phase - mean) ** 2) / (2 * sigma_1**2))
+        )
+        g2 = (
+            amplitude
+            / (sigma_2 * np.sqrt(2 * np.pi))
+            * np.exp(-((phase - mean) ** 2) / (2 * sigma_2**2))
+        )
+        return np.where(phase < mean, g1, g2)
