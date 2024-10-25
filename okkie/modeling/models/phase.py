@@ -274,9 +274,9 @@ class CompoundPhaseModel(PhaseModel):
             f"    Operator : {self.operator.__name__}\n"
         )
 
-    def __call__(self, energy):
-        val1 = self.model1(energy)
-        val2 = self.model2(energy)
+    def __call__(self, phase):
+        val1 = self.model1(phase)
+        val2 = self.model2(phase)
         return self.operator(val1, val2)
 
     def evaluate(self, phase, *args):

@@ -230,8 +230,8 @@ class SourceModel(ModelBase):
     def __radd__(self, model):
         return self.__add__(model)
 
-    def __call__(self, lon, lat, energy, time=None):
-        return self.evaluate(lon, lat, energy, time)
+    def __call__(self, lon=None, lat=None, energy=None, time=None, phase=None):
+        return self.evaluate(lon, lat, energy, time, phase)
 
     def __repr__(self):
         return (
@@ -266,7 +266,13 @@ class SourceModel(ModelBase):
         value : `~astropy.units.Quantity`
             Model value at the given point.
         """
-        if (lon and lat and energy and time and phase) is None:
+        if (
+            (lon is None)
+            and (lat is None)
+            and (energy is None)
+            and (time is None)
+            and (phase is None)
+        ):
             raise ValueError("Found no axis to evaluate models")
         value = 1
         if (self.spectral_model is not None) and (energy is not None):
