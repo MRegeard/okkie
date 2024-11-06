@@ -3,9 +3,11 @@ import operator
 import astropy.units as u
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy
 from gammapy.maps import MapAxis
 from gammapy.modeling import Parameter
 from gammapy.modeling.models import ModelBase
+from okkie.utils.models import gammapy_build_parameters_from_dict
 
 log = logging.getLogger(__name__)
 
@@ -51,6 +53,24 @@ class PhaseModel(ModelBase):
 
     def __rsub__(self, model):
         return self.__sub__(model)
+
+    @classmethod
+    def from_dict(cls, data, **kwargs):
+        key0 = next(iter(data))
+
+        if key0 == "phase":
+            data = data[key0]
+
+        if data["type"] not in cls.tag:
+            raise ValueError(
+                f"Invalid model type {data['type']} for class {cls.__name__}"
+            )
+
+        parameters = gammapy_build_parameters_from_dict(
+            data["parameters"], cls.default_parameters
+        )
+
+        return cls.from_parameters(parameters, **kwargs)
 
     def _propagate_error(self, epsilon, fct, **kwargs):
         """Evaluate error for a given function with uncertainty propagation.
@@ -292,13 +312,26 @@ class LorentzianPhaseModel(PhaseModel):
 
     tag = ["LorentzianphaseModel", "lor"]
     amplitude = Parameter("amplitude", 1, is_norm=True)
-    center = Parameter("center", 0)
-    width = Parameter("width", 0.1)
+    mean = Parameter("mean", 0)
+    sigma = Parameter("sigma", 0.1)
 
     @staticmethod
-    def evaluate(phase, center, amplitude, width):
+    def evaluate(phase, amplitude, mean, sigma):
         """Evaluate the model"""
-        return amplitude / (1 + np.power((phase - center) / width, 2))
+        return amplitude / (1 + np.power((phase - mean) / (sigma / 2), 2))
+
+    def to_pdf(self):
+        norm_amp = 2 / (np.pi * self.sigma.value)
+        return self.__class__(amplitude=norm_amp, mean=self.mean, sigma=self.sigma)
+
+    def integral(self, phase_min, phase_max):
+        amplitude = self.amplitude.value
+        mean = self.mean.value
+        sigma = self.sigma.value
+        return amplitude * sigma(
+            np.arctan((phase_max - mean) / sigma)
+            - np.arctan((phase_min - mean) / sigma)
+        )
 
 
 class AsymmetricLorentzianPhaseModel(PhaseModel):
@@ -318,6 +351,25 @@ class AsymmetricLorentzianPhaseModel(PhaseModel):
 
         return amplitude * np.where(phase < mean, l1, l2)
 
+    def to_pdf(self):
+        norm_amp = 2 / (np.pi * (self.sigma_1.value + self.sigma_2.value))
+        return self.__class__(
+            amplitude=norm_amp,
+            mean=self.mean,
+            sigma_1=self.sigma_1,
+            sigma_2=self.sigma_2,
+        )
+
+    def integral(self, phase_min, phase_max):
+        amplitude = self.amplitude.value
+        mean = self.mean.value
+        sigma_1 = self.sigma_1.value
+        sigma_2 = self.sigma_2.value
+        return amplitude * (
+            sigma_1 * np.arctan((phase_max - mean) / sigma_1)
+            - sigma_2 * np.arctan((phase_min - mean) / sigma_1)
+        )
+
 
 class GaussianPhaseModel(PhaseModel):
     """Gaussian phase model."""
@@ -330,6 +382,21 @@ class GaussianPhaseModel(PhaseModel):
     @staticmethod
     def evaluate(phase, amplitude, mean, sigma):
         return amplitude * np.exp(-((phase - mean) ** 2) / (2 * sigma**2))
+
+    def to_pdf(self):
+        norm_amp = 1 / (self.sigma.value * np.sqrt(2 * np.pi))
+        return self.__class__(amplitude=norm_amp, sigma=self.sigma, mean=self.mean)
+
+    def integral(self, phase_min, phase_max):
+        mean = self.mean.value
+        sigma = self.sigma.value
+        phase_min = (phase_min - mean) / (np.sqrt(2) * sigma)
+        phase_max = (phase_max - mean) / (np.sqrt(2) * sigma)
+        return (
+            self.amplitude.value
+            / 2
+            * (scipy.special.erf(phase_max) - scipy.special.erf(phase_min))
+        )
 
 
 class AsymetricGaussianPhaseModel(PhaseModel):
@@ -350,3 +417,24 @@ class AsymetricGaussianPhaseModel(PhaseModel):
         g2 = np.exp(-((phase - mean) ** 2) / (2 * sigma_2**2))
 
         return amplitude * np.where(phase < mean, g1, g2)
+
+    def to_pdf(self):
+        norm_amp = np.sqrt(2 / np.pi) * 1 / (self.sigma_1.value + self.sigma_2.value)
+        return self.__class__(
+            amplitude=norm_amp,
+            mean=self.mean,
+            sigma_1=self.sigma_1,
+            sigma_2=self.sigma_2,
+        )
+
+    def integral(self, phase_min, phase_max):
+        mean = self.mean.value
+        sigma_1 = self.sigma_1.value
+        sigma_2 = self.sigma_2.value
+        phase_min = (phase_min - mean) / (np.sqrt(2) * sigma_1)
+        phase_max = (phase_max - mean) / (np.sqrt(2) * sigma_2)
+        return (
+            self.amplitude.value
+            / 2
+            * (scipy.special.erf(phase_max) - scipy.special.erf(phase_min))
+        )
