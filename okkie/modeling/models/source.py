@@ -3,6 +3,9 @@ from astropy.time import Time
 from gammapy.maps import MapAxis, WcsGeom
 from gammapy.modeling import Parameters
 from gammapy.modeling.models import (
+    SPATIAL_MODEL_REGISTRY,
+    SPECTRAL_MODEL_REGISTRY,
+    TEMPORAL_MODEL_REGISTRY,
     ModelBase,
     Models,
     SkyModel,
@@ -294,3 +297,68 @@ class SourceModel(ModelBase):
             value = value * self.phase_model(phase)
 
         return value
+
+    def to_dict(self, full_output=False):
+        """Create dictionary for YAML serilisation."""
+        data = {}
+        data["name"] = self.name
+        data["type"] = self.tag[0]
+
+        if self.apply_irf != self._apply_irf_default:
+            data["apply_irf"] = self.apply_irf
+
+        if self.datasets_names is not None:
+            data["datasets_names"] = self.datasets_names
+
+        if (spectral := self.spectral_model) is not None:
+            data.update(spectral.to_dict(full_output))
+
+        if (phase := self.phase_model) is not None:
+            data.update(phase.to_dict(full_output))
+
+        if (spatial := self.spatial_model) is not None:
+            data.update(spatial.to_dict(full_output))
+
+        if (temporal := self.temporal_model) is not None:
+            data.update(temporal.to_dict(full_output))
+
+        return data
+
+    @classmethod
+    def from_dict(cls, data, **kwargs):
+        """Create SourceModel from dictionary."""
+        from okkie.modeling.models import PHASE_MODEL_REGISTRY
+
+        if (spectral_model := data.get("spectral")) is not None:
+            model_class = SPECTRAL_MODEL_REGISTRY.get_cls(spectral_model["type"])
+            spectral_model = model_class.from_dict({"spectral": spectral_model})
+        else:
+            spectral_model = None
+
+        if (spatial_data := data.get("spatial")) is not None:
+            model_class = SPATIAL_MODEL_REGISTRY.get_cls(spatial_data["type"])
+            spatial_model = model_class.from_dict({"spatial": spatial_data})
+        else:
+            spatial_model = None
+
+        if (temporal_data := data.get("temporal")) is not None:
+            model_class = TEMPORAL_MODEL_REGISTRY.get_cls(temporal_data["type"])
+            temporal_model = model_class.from_dict({"temporal": temporal_data})
+        else:
+            temporal_model = None
+
+        if (phase_model := data.get("phase")) is not None:
+            model_class = PHASE_MODEL_REGISTRY.get_cls(phase_model["type"])
+            phase_model = model_class.from_dict({"phase": phase_model})
+        else:
+            phase_model = None
+
+        return cls(
+            name=data["name"],
+            phase_model=phase_model,
+            spatial_model=spatial_model,
+            spectral_model=spectral_model,
+            temporal_model=temporal_model,
+            apply_irf=data.get("apply_irf", cls._apply_irf_default),
+            datasets_names=data.get("datasets_names"),
+        )
