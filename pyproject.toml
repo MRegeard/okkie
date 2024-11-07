@@ -1,0 +1,162 @@
+[project]
+name = "okkie"
+dynamic = [
+    "version"
+]
+description = "Python package for gamma-ray pulsar astronomy"
+readme = "README.rst"
+authors = [
+    { name = "REGEARD Maxime"}
+]
+license = { text = "BSD-3-Clause" }
+requires-python = ">=3.9"
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",,
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Astronomy",
+]
+keywords = [
+    "astronomy",
+    "astrophysics",
+    "pulsars",
+    "space",
+    "science",
+    "modeling",
+    "models",
+]
+dependencies = [
+    "numpy>=1.23.2",
+    "gammapy>=1.2",
+    "astropy>=5.0",
+    "pint-pulsar>=1.0",
+    "matplotlib>=3.4",
+]
+
+[build-system]
+requires = ["setuptools",
+            "setuptools_scm>=6.2",
+            "cython>=3.0.0, <4",
+            "numpy>=2.0.0, <3",
+            "extension-helpers>=1,<2"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+include-package-data = true
+license-files = ["LICENSE.rst", "licenses/*.rst"]
+
+[tool.setuptools.packages.find]
+include = ["okkie*"]
+namespaces = true
+
+[tool.ruff]
+lint.select = ["ALL"]
+lint.ignore = [  # NOTE: non-permanent exclusions should be added to `.ruff.toml` instead.
+
+    # flake8-builtins (A) : shadowing a Python built-in.
+    # New ones should be avoided and is up to maintainers to enforce.
+    "A00",
+
+    # flake8-bugbear (B)
+    "B008",  # FunctionCallArgumentDefault
+
+    # flake8-commas (COM)
+    "COM812",  # TrailingCommaMissing
+    "COM819",  # TrailingCommaProhibited
+
+    # pydocstyle (D)
+    # Missing Docstrings
+    "D102",  # Missing docstring in public method. Don't check b/c docstring inheritance.
+    "D105",  # Missing docstring in magic method. Don't check b/c class docstring.
+    # Whitespace Issues
+    "D200",  # FitsOnOneLine
+    # Docstring Content Issues
+    "D410",  # BlankLineAfterSection. Using D412 instead.
+    "D400",  # EndsInPeriod.  NOTE: might want to revisit this.
+
+    # pycodestyle (E, W)
+    "E711",  # NoneComparison  (see unfixable)
+    "E741",  # AmbiguousVariableName. Physics variables are often poor code variables
+
+    # flake8-fixme (FIX)
+    "FIX002",  # Line contains TODO | notes for improvements are OK iff the code works
+
+    # ISC001 shouldn't be used with ruff format
+    # https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
+    "ISC001",
+
+    # pep8-naming (N)
+    "N803",  # invalid-argument-name. Physics variables are often poor code variables
+    "N806",  # non-lowercase-variable-in-function. Physics variables are often poor code variables
+
+    # pandas-vet (PD)
+    "PD",
+
+    # pylint (PLR and PLW)
+    "PLR1730", # if-stmt-min-max (not always clearer, and sometimes slower)
+    "PLW0642", # self-or-cls-assignment (occasionally desirable, very rarely a mistake)
+
+    # flake8-use-pathlib (PTH)
+    "PTH123", # builtin-open (not worth creating a Path object, builtin open is fine)
+
+    # flake8-simplify (SIM)
+    "SIM103", # needless-bool (cannot be safely applied in all contexts (np.True_ is not True))
+
+    # flake8-self (SLF)
+    "SLF001", # private member access
+
+    # flake8-todos (TD)
+    "TD002",  # Missing author in TODO
+
+    # flake8-return (RET)
+    # RET can sometimes help find places where refactoring is very helpful,
+    # but enforcing it everywhere might create undesirable churn
+    "RET505",  # superfluous-else-return
+    "RET506",  # superfluous-else-raise
+
+    # Ruff-specific rules (RUF)
+    "RUF005",  # unpack-instead-of-concatenating-to-collection-literal -- it's not clearly faster.
+]
+
+[tool.ruff.lint.extend-per-file-ignores]
+"setup.py" = ["INP001"]  # Part of configuration, not a package.
+".github/workflows/*.py" = ["INP001"]
+"test_*.py" = [
+    "ANN201",  # Public function without return type annotation
+    "B018",  # UselessExpression
+    "D",  # pydocstyle
+    "S101",  # Use of assert detected
+]
+".pyinstaller/*.py" = ["INP001"]  # Not a package.
+"conftest.py" = ["INP001"]  # Part of configuration, not a package.
+"docs/*.py" = [
+    "INP001",  # implicit-namespace-package. The examples are not a package.
+]
+"examples/*.py" = [
+    "E402",   # Imports are done as needed.
+    "INP001", # implicit-namespace-package. The examples are not a package.
+    "T203"    # pprint found
+]
+"__init__.py" = ["F403"]  # Wildcard imports
+
+[tool.ruff.lint.flake8-annotations]
+ignore-fully-untyped = true
+mypy-init-return = true
+
+[tool.ruff.lint.flake8-comprehensions]
+allow-dict-calls-with-keyword-arguments = true
+
+[tool.ruff.lint.flake8-type-checking]
+exempt-modules = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["okkie", "extension_helpers"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
