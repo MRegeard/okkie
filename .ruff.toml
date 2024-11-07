@@ -197,6 +197,7 @@ lint.unfixable = [
 "test_*.py" = [
     "PTH", # all flake8-use-pathlib
     "RUF015",  # Prefer next({iterable}) over single element slice
+]
 "docs/*" = []
 "examples/coordinates/*" = []
 

@@ -14,7 +14,7 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: BSD License",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",,
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -99,7 +99,7 @@ lint.ignore = [  # NOTE: non-permanent exclusions should be added to `.ruff.toml
     "PD",
 
     # pylint (PLR and PLW)
-    "PLR1730", # if-stmt-min-max (not always clearer, and sometimes slower)
+    "PLR1730",#commented because unknown rule selector # if-stmt-min-max (not always clearer, and sometimes slower)
     "PLW0642", # self-or-cls-assignment (occasionally desirable, very rarely a mistake)
 
     # flake8-use-pathlib (PTH)
