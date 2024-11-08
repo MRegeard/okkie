@@ -1,3 +1,20 @@
-from .pulsar import GJ_density, Pulsar, PulsarGeom, rlc
+from .pulsar import (
+    B_CONST,
+    DEFAULT_M_NS,
+    DEFAULT_R_NS,
+    GJ_density,
+    Pulsar,
+    PulsarGeom,
+    rlc,
+)
 
-__all__ = ["Pulsar", "PulsarGeom", "rlc", "GJ_density", "rlc"]
+__all__ = [
+    "Pulsar",
+    "PulsarGeom",
+    "rlc",
+    "GJ_density",
+    "rlc",
+    "DEFAULT_R_NS",
+    "DEFAULT_M_NS",
+    "B_CONST",
+]
