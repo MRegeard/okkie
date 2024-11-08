@@ -35,8 +35,24 @@ dependencies = [
     "numpy>=1.23.2",
     "gammapy>=1.2",
     "astropy>=5.0",
+    "packaging>=22.0.0",
+    "PyYAML>=6.0.0",
+]
+
+[project.optional-dependencies]
+# Recommended run-time dependencies to enable a lot of functionality within Astropy.
+recommended = [
     "pint-pulsar>=1.0",
-    "matplotlib>=3.4",
+    "scipy>=1.9.2",
+    "matplotlib>=3.6.0",
+]
+
+# Optional IPython-related behavior is in many places in Astropy. IPython is a complex
+# dependency that occasionally requires pinning one of it's upstream dependencies. If
+# you are using Astropy from an IPython-dependent IDE, like Jupyter, this should enforce
+# the minimum supported version of IPython.
+ipython = [
+    "ipython>=8.0.0",
 ]
 
 [build-system]
@@ -56,6 +72,11 @@ include = ["okkie*"]
 namespaces = true
 
 [tool.ruff]
+exclude = ["docs", "dev"]
+# Like black
+line-length = 88
+indent-width = 4
+
 lint.select = ["ALL"]
 lint.ignore = [  # NOTE: non-permanent exclusions should be added to `.ruff.toml` instead.
 
@@ -123,6 +144,19 @@ lint.ignore = [  # NOTE: non-permanent exclusions should be added to `.ruff.toml
     # Ruff-specific rules (RUF)
     "RUF005",  # unpack-instead-of-concatenating-to-collection-literal -- it's not clearly faster.
 ]
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
 
 [tool.ruff.lint.extend-per-file-ignores]
 "setup.py" = ["INP001"]  # Part of configuration, not a package.
