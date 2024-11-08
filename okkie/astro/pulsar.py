@@ -339,7 +339,7 @@ class Pulsar:
 
 class PulsarGeom:
     def __init__(self, alpha=None, zeta=None):
-        """
+        """Class representing a pulsar geometry.
 
         Parameters
         ----------
