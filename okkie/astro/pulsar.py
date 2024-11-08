@@ -1,4 +1,5 @@
 import logging
+
 import astropy.constants as const
 import astropy.units as u
 import numpy as np
@@ -9,7 +10,15 @@ from gammapy.utils.scripts import make_name, make_path
 log = logging.getLogger(__name__)
 
 
-__all__ = ["Pulsar", "GJ_density", "PulsarGeom", "rlc"]
+__all__ = [
+    "Pulsar",
+    "GJ_density",
+    "PulsarGeom",
+    "rlc",
+    "DEFAULT_R_NS",
+    "DEFAULT_M_NS",
+    "B_CONST",
+]
 
 DEFAULT_R_NS = 1.2e6 * u.cm
 
@@ -23,9 +32,9 @@ B_CONST = np.sqrt(
 rlc = u.def_unit("rlc", represents=u.Quantity(1, ""))
 
 
-def GJ_density(Omega, r, B, alpha, zeta):
+def GJ_density(Omega, r, B, alpha, theta):
     """
-    Return the Goldreich and Juian charge density (ref).
+    Return the Goldreich and Julian charge density (ref).
 
     Parameters
     ----------
@@ -37,20 +46,48 @@ def GJ_density(Omega, r, B, alpha, zeta):
         Magnetic field strenght at `r`.
     alpha: `~astropy.units.Quantity`
         Magnetic angle. Angle between the rotation axis and the magnetic dipole axis.
-    zeta: `~astropy.units.Quantity`
-        Viewing angle. Angle between the rotation axis and the line of sight.
+    theta: `~astropy.units.Quantity`
+        Latitude angle, define from the rotation axis pole.
     """
     cgs_density = (
         -Omega
         * B.to("G")
         * np.cos(alpha)
         / (2 * np.pi * const.c.cgs)
-        * (1 / (1 - (r * np.sin(zeta) / (1 * rlc)) ** 2))
+        * (1 / (1 - (r * np.sin(theta) / (1 * rlc)) ** 2))
     )
     return (cgs_density.value * u.Unit("Fr cm-3") / const.e.gauss) * const.e.si
 
 
 class Pulsar:
+    """Class representing a pulsar.
+
+    Parameters
+    ----------
+    P0: `~astropy.units.Quantity`
+        Period of the pulsar.
+    P1: `~astropy.units.Quantity`
+        Period derivative od the pulsar.
+    B_NS: `~astropy.units.Quantity`, optional
+        Strength of the magnetic field of the neutron star at the surface. If None,
+        computed from `P0` and `P1`. Default is None.
+    R_NS: `~astropy.units.Quantity`, optional
+        Radius of the neutron star. Defaults is `1.2e6 cm`.
+    age: `~astropy.units.Quantity`, optional
+        Age of the pulsar. Default is None.
+    geom: `PulsarGeom`, optional
+        Pulsar geometry. If None, defaults to default value of `PulsarGeom`. Default is None.
+    M_NS: `~astropy.units.Quantity`, optional
+        Mass of the neutron star. Default is `1.4 * M_sun`.
+    dist: `~astropy.units.Quantity`, optional
+        Distance of the pulsar. Default is `1 kpc`.
+    name: str, optional
+        Name of the pulsar.
+    positon: `~astropy.coordinates.SkyCoord`, optional
+        Positon of the pulsar. If None, trying to set the pulsar position using `name`.
+        If this fails, setting position to galactic center. Default is None.
+    """
+
     def __init__(
         self,
         P0,
@@ -80,6 +117,7 @@ class Pulsar:
 
     @property
     def B_NS(self):
+        """Magnetic field strength at the neutron star surface."""
         return self._B_NS
 
     @B_NS.setter
@@ -93,6 +131,7 @@ class Pulsar:
 
     @property
     def P0(self):
+        """Period of the pulsar."""
         return self._P0
 
     @P0.setter
@@ -103,10 +142,12 @@ class Pulsar:
 
     @property
     def F0(self):
+        """Frequency of the pulsar (1/`P0`)."""
         return 1 / self.P0
 
     @property
     def P1(self):
+        """Derivative of the period of the pulsar."""
         return self._P1
 
     @P1.setter
@@ -114,7 +155,13 @@ class Pulsar:
         self._P1 = u.Quantity(value, "")
 
     @property
+    def F1(self):
+        "Derivative of the frequency of the pulsar (-`P1`/`P0`**2)." ""
+        return -self.P1 / (self.P0) ** 2
+
+    @property
     def R_NS(self):
+        """Radius of the neutron star."""
         return self._R_NS
 
     @R_NS.setter
@@ -125,6 +172,7 @@ class Pulsar:
 
     @property
     def age(self):
+        """Age of the pulsar."""
         return self._age
 
     @age.setter
@@ -138,19 +186,31 @@ class Pulsar:
 
     @property
     def R_LC(self):
+        """Radius of the light cylinder."""
         return const.c * self.P0 / (2 * np.pi)
 
     def B(self, radius):
+        """Compute the strength of the magnetic field as a function of the radius.
+
+        Parameters
+        ----------
+        radius: `~astropy.units.Quantity`
+            Radius to compute the magnetic field value.
+        Returns: `~astropy.units.Quantity`
+            Value of the magnetic filed at the given radius.
+        """
         if radius.unit is rlc:
             radius = radius.value * self.R_LC
         return (self.B_NS / (radius / self.R_NS) ** 3).to("G")
 
     @property
     def B_LC(self):
+        """Value of the magnetic field at `R_LC`."""
         return self.B(1 * rlc)
 
     @property
     def M_NS(self):
+        """Mass of the neutron star."""
         return self._M_NS
 
     @M_NS.setter
@@ -161,16 +221,19 @@ class Pulsar:
 
     @property
     def I_NS(self):
+        """Moment of inertia of the neutron star."""
         return 2 / 5 * self.M_NS * self.R_NS**2
 
     @property
     def E_dot(self):
+        """Energy loss of the pulsar."""
         return (-((2 * np.pi) ** 2) * self.I_NS * self.P1 / (self.P0) ** 3).to(
             "erg s-1"
         )
 
     @property
     def dist(self):
+        """Distance of the pulsar."""
         return self._dist
 
     @dist.setter
@@ -181,10 +244,12 @@ class Pulsar:
 
     @property
     def name(self):
+        """Name of the pulsar."""
         return self._name
 
     @property
     def position(self):
+        """Position of the pulsar."""
         return self._position
 
     @position.setter
@@ -192,12 +257,12 @@ class Pulsar:
         if value is None:
             try:
                 position = SkyCoord.from_name(self.name)
+                self._position = position
             except Exception as e:
-                raise GetPulsarPositionError(
-                    f"""Error while trying to get the pulsar position. This is likely due to not properly defined pulsar name:
-                                             {self.name}, or connection error. See error message below.\n{e}"""
-                )
-            self._position = position
+                log.warning("""Error while trying to get the pulsar position. This is likely due to not properly defined pulsar name:
+                            {self.name}, or connection error.\n
+                            Setting position to Galactic center.""")
+                self._position = SkyCoord(0, 0, unit="deg", frame="galactic")
         else:
             if not isinstance(value, SkyCoord):
                 raise TypeError(
@@ -207,10 +272,12 @@ class Pulsar:
 
     @property
     def Omega(self):
+        """Rotational angular frequency."""
         return 2 * np.pi / self.P0
 
     @property
     def geom(self):
+        """Pulsar geometry."""
         return self._geom
 
     @geom.setter
@@ -220,6 +287,19 @@ class Pulsar:
         self._geom = value
 
     def GJ_density(self, radius, theta=None):
+        """Compute the Goldreich and Julian charge density.
+
+        Parameters
+        ----------
+        radius: `~astropy.units.Quantity`
+            Radius to compute the density.
+        theta: `~astropy.units.Quantity` or float
+            Latitude angle to compute the density. The Latitude is taken from the rotation axis pole.
+
+        Returns
+        -------
+        density: Goldreich and Julian density.
+        """
         theta = theta or self.geom.zeta
         if radius.unit.is_equivalent(u.cm):
             radius = (radius / self.R_LC).to("") * rlc
@@ -227,6 +307,7 @@ class Pulsar:
 
     @classmethod
     def from_frequency(cls, F0, F1, **kwargs):
+        """Create from frequency instead of period."""
         if not isinstance(F0, u.Quantity):
             log.info("No unit found for `F0`, assuming `Hz`.")
             F0 = u.Quantity(F0, "Hz")
@@ -238,7 +319,8 @@ class Pulsar:
         return cls(P0=P0, P1=P1, **kwargs)
 
     @classmethod
-    def from_timing_model(cls, filename, **kwargs):
+    def from_ephemeris_file(cls, filename, **kwargs):
+        """Create from an ephemeris file."""
         filename = make_path(filename)
         model = pmodels.get_model(filename)
         name = model["PSR"].value
@@ -257,11 +339,22 @@ class Pulsar:
 
 class PulsarGeom:
     def __init__(self, alpha=None, zeta=None):
-        self.alpha = alpha or 0 * u.deg
+        """
+
+        Parameters
+        ----------
+        alpha:
+            Magnetic inclination angle (angle between the rotation axis and the magnetic axis).
+        zeta:
+            Viewing angle (angle between the rotation axis and the line of sight).
+
+        """
+        self.alpha = alpha or 90 * u.deg
         self.zeta = zeta or 90 * u.deg
 
     @property
     def alpha(self):
+        """Magnetic inclination angle."""
         return self._alpha
 
     @alpha.setter
@@ -272,6 +365,7 @@ class PulsarGeom:
 
     @property
     def zeta(self):
+        """Viewing angle."""
         return self._zeta
 
     @zeta.setter
@@ -279,7 +373,3 @@ class PulsarGeom:
         if not isinstance(value, u.Quantity):
             raise TypeError("assigned value must be a `astropy.units.quantity`.")
         self._zeta = u.Quantity(value, "deg")
-
-
-class GetPulsarPositionError(Exception):
-    pass
