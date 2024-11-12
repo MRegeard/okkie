@@ -1,5 +1,6 @@
 import logging
 import operator
+
 import astropy.units as u
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,6 +8,7 @@ import scipy
 from gammapy.maps import MapAxis
 from gammapy.modeling import Parameter
 from gammapy.modeling.models import ModelBase
+
 from okkie.utils.models import gammapy_build_parameters_from_dict
 
 log = logging.getLogger(__name__)
@@ -322,10 +324,23 @@ class LorentzianPhaseModel(PhaseModel):
         return amplitude / (1 + np.power((phase - mean) / (sigma / 2), 2))
 
     def to_pdf(self):
+        """Return a pdf version of the model."""
         norm_amp = 2 / (np.pi * self.sigma.value)
         return self.__class__(amplitude=norm_amp, mean=self.mean, sigma=self.sigma)
 
     def integral(self, phase_min, phase_max):
+        """Integral between `phase_min` and `phase_max`.
+
+        Parameters
+        ----------
+        phase_min, phase_max: float
+            Edges of the integration.
+
+        Returns
+        -------
+        integral: float
+            Value of the integral.
+        """
         amplitude = self.amplitude.value
         mean = self.mean.value
         sigma = self.sigma.value
@@ -354,6 +369,7 @@ class AsymmetricLorentzianPhaseModel(PhaseModel):
         return amplitude * np.where(phase < mean, l1, l2)
 
     def to_pdf(self):
+        """Return a pdf version of the model."""
         norm_amp = 2 / (np.pi * (self.sigma_1.value + self.sigma_2.value))
         return self.__class__(
             amplitude=norm_amp,
@@ -363,6 +379,18 @@ class AsymmetricLorentzianPhaseModel(PhaseModel):
         )
 
     def integral(self, phase_min, phase_max):
+        """Integral between `phase_min` and `phase_max`.
+
+        Parameters
+        ----------
+        phase_min, phase_max: float
+            Edges of the integration.
+
+        Returns
+        -------
+        integral: float
+            Value of the integral.
+        """
         amplitude = self.amplitude.value
         mean = self.mean.value
         sigma_1 = self.sigma_1.value
@@ -387,10 +415,23 @@ class GaussianPhaseModel(PhaseModel):
         return amplitude * np.exp(-((phase - mean) ** 2) / (2 * sigma**2))
 
     def to_pdf(self):
+        """Return a pdf version of the model."""
         norm_amp = 1 / (self.sigma.value * np.sqrt(2 * np.pi))
         return self.__class__(amplitude=norm_amp, sigma=self.sigma, mean=self.mean)
 
     def integral(self, phase_min, phase_max):
+        """Integral between `phase_min` and `phase_max`.
+
+        Parameters
+        ----------
+        phase_min, phase_max: float
+            Edges of the integration.
+
+        Returns
+        -------
+        integral: float
+            Value of the integral.
+        """
         mean = self.mean.value
         sigma = self.sigma.value
         phase_min = (phase_min - mean) / (np.sqrt(2) * sigma)
@@ -423,6 +464,7 @@ class AsymetricGaussianPhaseModel(PhaseModel):
         return amplitude * np.where(phase < mean, g1, g2)
 
     def to_pdf(self):
+        """Return a pdf version of the model."""
         norm_amp = np.sqrt(2 / np.pi) * 1 / (self.sigma_1.value + self.sigma_2.value)
         return self.__class__(
             amplitude=norm_amp,
@@ -432,6 +474,18 @@ class AsymetricGaussianPhaseModel(PhaseModel):
         )
 
     def integral(self, phase_min, phase_max):
+        """Integral between `phase_min` and `phase_max`.
+
+        Parameters
+        ----------
+        phase_min, phase_max: float
+            Edges of the integration.
+
+        Returns
+        -------
+        integral: float
+            Value of the integral.
+        """
         mean = self.mean.value
         sigma_1 = self.sigma_1.value
         sigma_2 = self.sigma_2.value
