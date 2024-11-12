@@ -1,4 +1,5 @@
 import logging
+
 import astropy.units as u
 import numpy as np
 import pint
@@ -207,7 +208,7 @@ class PhaseMaker:
             "DECJ",
         ]
 
-        meta_dict = dict()
+        meta_dict = {}
         meta_dict["COLUMN_NAME"] = column_name
         meta_dict["EPHEMERIS_FILE"] = str(self.ephemeris_file)
         meta_dict["PINT_VERS"] = pint.__version__
@@ -361,7 +362,7 @@ class FermiPhaseMaker:
             "DECJ",
         ]
 
-        meta_dict = dict()
+        meta_dict = {}
         meta_dict["COLUMN_NAME"] = column_name
         meta_dict["EPHEMERIS_FILE"] = str(ephemeris_file)
         meta_dict["PINT_VERS"] = pint.__version__
