@@ -2,3 +2,6 @@
 __pycache__
 okkie.egg-info/
 /dev/testing/
+
+# Mac OSX
+.DS_Store
