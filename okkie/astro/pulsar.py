@@ -343,14 +343,16 @@ class PulsarGeom:
 
         Parameters
         ----------
-        alpha:
+        alpha: `~astropy.units.Quantity`, optional
             Magnetic inclination angle (angle between the rotation axis and the magnetic axis).
-        zeta:
+            If None, set to 90 deg. Default is None.
+        zeta: `~astropy.units.Quantity`, optional
             Viewing angle (angle between the rotation axis and the line of sight).
+            If None, set to 90 deg. Default is None.
 
         """
-        self.alpha = alpha or 90 * u.deg
-        self.zeta = zeta or 90 * u.deg
+        self.alpha = alpha
+        self.zeta = zeta
 
     @property
     def alpha(self):
@@ -359,6 +361,8 @@ class PulsarGeom:
 
     @alpha.setter
     def alpha(self, value):
+        if value is None:
+            value = 90 * u.deg
         if not isinstance(value, u.Quantity):
             raise TypeError("assigned value must be a `astropy.units.quantity`.")
         self._alpha = u.Quantity(value, "deg")
@@ -370,6 +374,8 @@ class PulsarGeom:
 
     @zeta.setter
     def zeta(self, value):
+        if value is None:
+            value = 90 * u.deg
         if not isinstance(value, u.Quantity):
             raise TypeError("assigned value must be a `astropy.units.quantity`.")
         self._zeta = u.Quantity(value, "deg")
