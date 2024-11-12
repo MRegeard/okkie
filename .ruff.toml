@@ -201,6 +201,9 @@ lint.unfixable = [
 "okkie/makers/*" = [
     "G004", # logging-f-string
 ]
+"okkie/utils/models.py" = [
+    "G004", # logging-f-string
+]
 "docs/*" = []
 "examples/coordinates/*" = []
 
