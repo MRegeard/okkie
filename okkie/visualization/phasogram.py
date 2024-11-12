@@ -100,7 +100,7 @@ class VisuPhasogram:
                 [
                     len(self.events.select_parameter(self.phase_column_name, off).time)
                     for off in self._split_phase_intervals(
-                        list(np.array(self.off_phase) + self.offset)
+                        (np.array(self.off_phase) + self.offset).tolist()
                     )
                 ]
             )
