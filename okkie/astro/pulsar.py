@@ -260,8 +260,8 @@ class Pulsar:
                 self._position = position
             except Exception as e:
                 log.warning("""Error while trying to get the pulsar position. This is likely due to not properly defined pulsar name:
-                            {self.name}, or connection error.\n
-                            Setting position to Galactic center.""")
+{self.name}, or connection error.
+Setting position to Galactic center.""")
                 self._position = SkyCoord(0, 0, unit="deg", frame="galactic")
         else:
             if not isinstance(value, SkyCoord):
