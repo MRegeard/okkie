@@ -1,7 +1,6 @@
 .ruff_cache
 __pycache__
 okkie.egg-info/
-/dev/testing/
 
 # Mac OSX
 .DS_Store
