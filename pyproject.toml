@@ -66,10 +66,16 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 include-package-data = true
 license-files = ["LICENSE.rst", "licenses/*.rst"]
+zip-safe = false
+platforms = ["any"]
+provides = ["okkie"]
 
 [tool.setuptools.packages.find]
 include = ["okkie*"]
 namespaces = true
+
+[tool.setuptools_scm]
+write_to = "okkie/_version.py"
 
 [tool.ruff]
 exclude = ["docs", "dev"]
