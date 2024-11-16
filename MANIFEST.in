@@ -1,0 +1,10 @@
+# Exclude specific files
+# All files which are tracked by git and not explicitly excluded here are included by setuptools_scm
+exclude .gitignore
+exclude .pre-commit-config.yaml
+exclude .flake8
+exclude .ruff.toml
+exclude environment.yaml
+
+# Prune folders
+prune dev
