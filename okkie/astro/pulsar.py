@@ -307,7 +307,20 @@ Setting position to Galactic center.""")
 
     @classmethod
     def from_frequency(cls, F0, F1, **kwargs):
-        """Create from frequency instead of period."""
+        """Create from frequency instead of period.
+
+        Parameters
+        ----------
+        F0: float or `~astropy.units.Quantity`
+            Frequency of the pulsar.
+        F1: float or `~astropy.units.Quantity`
+            Derivative of the frequency of the pulsar.
+
+        Returns
+        -------
+        pulsar: `Pulsar`
+            Pulsar instance.
+        """
         if not isinstance(F0, u.Quantity):
             log.info("No unit found for `F0`, assuming `Hz`.")
             F0 = u.Quantity(F0, "Hz")
@@ -320,7 +333,18 @@ Setting position to Galactic center.""")
 
     @classmethod
     def from_ephemeris_file(cls, filename, **kwargs):
-        """Create from an ephemeris file."""
+        """Create from an ephemeris file.
+
+        Parameters
+        ----------
+        filename: str
+            Path to the ephemeris file.
+
+        Returns
+        -------
+        pulsar: `Pulsar`
+            Pulsar instance.
+        """
         filename = make_path(filename)
         model = pmodels.get_model(filename)
         name = model["PSR"].value
