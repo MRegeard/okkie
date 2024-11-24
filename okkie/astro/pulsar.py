@@ -258,7 +258,7 @@ class Pulsar:
             try:
                 position = SkyCoord.from_name(self.name)
                 self._position = position
-            except Exception as e:
+            except Exception:
                 log.warning("""Error while trying to get the pulsar position. This is likely due to not properly defined pulsar name:
 {self.name}, or connection error.
 Setting position to Galactic center.""")
@@ -304,6 +304,46 @@ Setting position to Galactic center.""")
         if radius.unit.is_equivalent(u.cm):
             radius = (radius / self.R_LC).to("") * rlc
         return GJ_density(self.Omega, radius, self.B(radius), self.geom.alpha, theta)
+
+    def FP_K19(self, eps_cut):
+        """Compute Fondamentale Plane (ref) eq.9
+
+        Parameters
+        ----------
+        eps_cut: u.Quantity
+            cutoff energy as defined in ref.
+
+        Returns
+        -------
+        fondamentale_plane: u.Quantity
+            fondamentale_plane
+        """
+        return (
+            10 ** (14.2)
+            * eps_cut.to("MeV").value ** (1.18)
+            * self.B_NS.to("G").value ** (0.17)
+            * (-self.E_dot.to("erg s-1").value) ** (0.41)
+        ) * u.Unit("erg s-1")
+
+    def FP(self, eps_c1):
+        """Compute Fondamentale Plane (ref) eq.9
+
+        Parameters
+        ----------
+        eps_c1: u.Quantity
+            cutoff energy as defined in ref.
+
+        Returns
+        -------
+        fondamentale_plane: u.Quantity
+            fondamentale_plane
+        """
+        return (
+            10 ** (14.3)
+            * eps_c1.to("MeV").value ** (1.39)
+            * self.B_NS.to("G").value ** (0.12)
+            * (-self.E_dot.to("erg s-1").value) ** (0.39)
+        ) * u.Unit("erg s-1")
 
     @classmethod
     def from_frequency(cls, F0, F1, **kwargs):
