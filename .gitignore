@@ -1,6 +1,7 @@
 .ruff_cache
 __pycache__
 okkie.egg-info/
+okkie/_version.py
 
 # Mac OSX
 .DS_Store
