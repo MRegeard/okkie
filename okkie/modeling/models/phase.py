@@ -21,7 +21,7 @@ __all__ = [
     "LorentzianPhaseModel",
     "AsymmetricLorentzianPhaseModel",
     "GaussianPhaseModel",
-    "AsymetricGaussianPhaseModel",
+    "AsymmetricGaussianPhaseModel",
 ]
 
 
@@ -443,7 +443,7 @@ class GaussianPhaseModel(PhaseModel):
         )
 
 
-class AsymetricGaussianPhaseModel(PhaseModel):
+class AsymmetricGaussianPhaseModel(PhaseModel):
     """Asymmetric Gaussian phase model.
 
     From 3PC Paper Eq. 10.

@@ -1,6 +1,7 @@
 from gammapy.utils.registry import Registry
+
 from .phase import (
-    AsymetricGaussianPhaseModel,
+    AsymmetricGaussianPhaseModel,
     AsymmetricLorentzianPhaseModel,
     CompoundPhaseModel,
     ConstantPhaseModel,
@@ -29,7 +30,7 @@ PHASE_MODEL_REGISTRY = Registry(
         LorentzianPhaseModel,
         AsymmetricLorentzianPhaseModel,
         GaussianPhaseModel,
-        AsymetricGaussianPhaseModel,
+        AsymmetricGaussianPhaseModel,
     ]
 )
 """Registry of phase model classes."""
