@@ -253,7 +253,7 @@ class PhaseModel(ModelBase):
 
 class ConstantPhaseModel(PhaseModel):
     tag = ["ConstantPhaseModel", "const"]
-    const = Parameter("const", "1")
+    const = Parameter("const", 1, interp="lin", scale_method="factor1")
 
     @staticmethod
     def evaluate(phase, const):
@@ -313,7 +313,7 @@ class LorentzianPhaseModel(PhaseModel):
     """Lorentzian phase model."""
 
     tag = ["LorentzianphaseModel", "lor"]
-    amplitude = Parameter("amplitude", 1, is_norm=True)
+    amplitude = Parameter("amplitude", 1, interp="lin", scale_method="factor1")
     mean = Parameter("mean", 0)
     sigma = Parameter("sigma", 0.1)
 
@@ -354,7 +354,7 @@ class AsymmetricLorentzianPhaseModel(PhaseModel):
     """Asymmetric Lorentzian phase model."""
 
     tag = ["AsymmetricLorentzianPhaseModel", "asymlor"]
-    amplitude = Parameter("amplitude", 1, is_norm=True)
+    amplitude = Parameter("amplitude", 1, interp="lin", scale_method="factor1")
     mean = Parameter("mean", 0.5)
     sigma_1 = Parameter("sigma_1", 0.1)
     sigma_2 = Parameter("sigma_2", 0.1)
@@ -405,7 +405,7 @@ class GaussianPhaseModel(PhaseModel):
     """Gaussian phase model."""
 
     tag = ["GaussianPhaseModel", "gauss"]
-    amplitude = Parameter("amplitude", 1, is_norm=True)
+    amplitude = Parameter("amplitude", 1, interp="lin", scale_method="factor1")
     mean = Parameter("mean", 0.5)
     sigma = Parameter("sigma", 0.1)
 
@@ -450,7 +450,7 @@ class AsymmetricGaussianPhaseModel(PhaseModel):
     """
 
     tag = ["AsymetricGaussianPhaseModel", "asymgauss"]
-    amplitude = Parameter("amplitude", 1, is_norm=True)
+    amplitude = Parameter("amplitude", 1, interp="lin", scale_method="factor1")
     mean = Parameter("mean", 0.5)
     sigma_1 = Parameter("sigma_1", 0.1)
     sigma_2 = Parameter("sigma_2", 0.1)
