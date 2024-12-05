@@ -18,7 +18,7 @@ __all__ = [
     "LorentzianPhaseModel",
     "AsymmetricLorentzianPhaseModel",
     "GaussianPhaseModel",
-    "AsymetricGaussianPhaseModel",
+    "AsymmetricGaussianPhaseModel",
     "SourceModel",
 ]
 
