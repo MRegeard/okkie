@@ -1,4 +1,4 @@
-from .physical_models import Curvature, NaimaSpectralModel
+from .physical_models import Curvature, NaimaSpectralModel, Synchrotron
 from .pulsar import (
     B_CONST,
     DEFAULT_M_NS,
@@ -19,5 +19,6 @@ __all__ = [
     "DEFAULT_M_NS",
     "B_CONST",
     "Curvature",
+    "Synchrotron",
     "NaimaSpectralModel",
 ]
