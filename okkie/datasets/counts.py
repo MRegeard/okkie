@@ -39,11 +39,13 @@ class CountsDataset(Dataset):
         models=None,
         name=None,
         meta_table=None,
+        mask_fit=None,
     ) -> None:
         self.counts = counts
         self.models = models
         self._name = make_name(name)
         self.meta_table = meta_table
+        self.mask_fit = mask_fit
 
     @property
     def models(self) -> Models:
