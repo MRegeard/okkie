@@ -17,7 +17,14 @@ from .pulsar import Pulsar
 
 log = logging.getLogger(__name__)
 
-__all__ = ["Curvature", "Synchrotron", "NaimaSpectralModel"]
+__all__ = [
+    "Curvature",
+    "Synchrotron",
+    "NaimaSpectralModel",
+    "lorentz_factor",
+    "PulsarSynchrotron",
+    "PulsarCurvature",
+]
 
 e = const.e.gauss
 
@@ -26,6 +33,29 @@ mec2_unit = u.Unit(mec2)
 
 ar = (4 * const.sigma_sb / const.c).to("erg/(cm3 K4)")
 r0 = (e**2 / mec2).to("cm")
+
+
+PARTICLES_MASS_DICT = {"e": const.m_e, "p": const.m_p, "n": const.m_n}
+
+
+@u.quantity_input
+def lorentz_factor(energy: u.erg, particles="e") -> u.Unit(""):
+    """Return the lorentz factor for a given energy and particles.
+
+    Parameters
+    ----------
+    energy: `~astropy.units.Quantity`
+        The energy of the particles.
+    particles: str, {"e", "p", "n"}, optional
+        The particles. Either "e" for electrons, "p" for protons or "n" for neutrons.
+        Default is "e".
+    """
+    return (1 + energy / (PARTICLES_MASS_DICT.get(particles) * const.c**2).cgs).to("")
+
+
+def energy_from_lorentz_factor(lorentz_factor, particles="e"):
+    """Return energy given a lorentz_factor and particules."""
+    return (lorentz_factor - 1) * (PARTICLES_MASS_DICT.get(particles) * const.c**2)
 
 
 def _validate_ene(ene):
@@ -459,12 +489,12 @@ class Synchrotron(BaseElectron):
 
 
 class PulsarSynchrotron:
-    def __init__(self, source, e_peak=None, spectral_model=None, luminosity=None):
-        self.source = source
+    def __init__(self, pulsar, e_peak=None, spectral_model=None):
+        self.pulsar = pulsar
         if (e_peak is None) and (spectral_model is None):
             raise ValueError("`e_peak` and `spectral_model` are both set to `None`.")
         if e_peak is None:
-            e_peak = self._init_e_peak_from_model(spectral_model)
+            self.e_peak = self._init_e_peak_from_model(spectral_model)
         else:
             self.e_peak = e_peak
         self.spectral_model = spectral_model
@@ -479,11 +509,11 @@ class PulsarSynchrotron:
             )
 
     @property
-    def source(self):
+    def pulsar(self):
         return self._source
 
-    @source.setter
-    def source(self, value):
+    @pulsar.setter
+    def pulsar(self, value):
         if not isinstance(value, Pulsar):
             raise TypeError("`source` must be an instance of `Pulsar`.")
         self._source = value
@@ -511,3 +541,174 @@ class PulsarSynchrotron:
                 "`spectral_model` must be an instance of `~gammapy.modeling.models.SpectralModel`."
             )
         self._spectral_model = value
+
+    @u.quantity_input
+    def luminosity(self, e_min: u.TeV = None, e_max: u.TeV = None) -> u.Unit("erg s-1"):
+        if (e_min is None) and (e_max is None):
+            return (
+                self.spectral_model(self.e_peak)
+                * self.e_peak**2
+                * 4
+                * np.pi
+                * self.pulsar.dist**2
+            )
+        else:
+            return (
+                self.spectral_model.energy_flux(e_min, e_max)
+                * 4
+                * np.pi
+                * self.pulsar.dist**2
+            )
+
+    @u.quantity_input
+    def P(self, lorentz_factor=None, B: u.G = None) -> u.Unit("erg s-1"):
+        if lorentz_factor is None:
+            lorentz_factor = self.lorentz_factor
+        if B is None:
+            B = self.pulsar.B_LC
+        U_b = B**2 / (2 * const.mu0)
+        return (4 / 3) * const.sigma_T * const.c * U_b * lorentz_factor**2
+
+    @property
+    @u.quantity_input
+    def nu_sync(self) -> u.Unit("s-1"):
+        return self.e_peak / const.h
+
+    @property
+    @u.quantity_input
+    def lorentz_factor(self) -> u.Unit(""):
+        return np.sqrt(
+            4
+            * np.pi
+            * const.m_e.cgs.value
+            * const.c.cgs.value
+            * self.nu_sync.cgs.value
+            / (3 * const.e.gauss.value * self.pulsar.B_LC.to("G").value)
+        )
+
+    @property
+    @u.quantity_input
+    def e_cut(self) -> u.Unit("erg"):
+        return self.lorentz_factor * const.m_e * const.c**2
+
+    @u.quantity_input
+    def N_part(
+        self, luminosity: u.Unit("erg s-1") = None, P: u.Unit("erg s-1") = None
+    ) -> u.Unit(""):
+        if luminosity is None:
+            luminosity = self.luminosity()
+        if P is None:
+            P = self.P()
+        return luminosity / P
+
+
+class PulsarCurvature:
+    def __init__(self, pulsar, e_peak=None, spectral_model=None):
+        self.pulsar = pulsar
+        if (e_peak is None) and (spectral_model is None):
+            raise ValueError("`e_peak` and `spectral_model` are both set to `None`.")
+        if e_peak is None:
+            self.e_peak = self._init_e_peak_from_model(spectral_model)
+        else:
+            self.e_peak = e_peak
+        self.spectral_model = spectral_model
+
+    @staticmethod
+    def _init_e_peak_from_model(model):
+        try:
+            return model.e_peak
+        except AttributeError:
+            raise TypeError(
+                "`e_peak` is set to `None` and `spectral_model` does not implement an `e_peak` attribute."
+            )
+
+    @property
+    def pulsar(self):
+        return self._source
+
+    @pulsar.setter
+    def pulsar(self, value):
+        if not isinstance(value, Pulsar):
+            raise TypeError("`source` must be an instance of `Pulsar`.")
+        self._source = value
+
+    @property
+    def e_peak(self):
+        return self._e_peak
+
+    @e_peak.setter
+    def e_peak(self, value):
+        if not isinstance(value, u.Quantity):
+            raise TypeError(
+                "`e_peak` must be an instance of `~astropy.units.Quantity`."
+            )
+        self._e_peak = u.Quantity(value, "GeV")
+
+    @property
+    def spectral_model(self):
+        return self._spectral_model
+
+    @spectral_model.setter
+    def spectral_model(self, value):
+        if not isinstance(value, SpectralModel):
+            raise TypeError(
+                "`spectral_model` must be an instance of `~gammapy.modeling.models.SpectralModel`."
+            )
+        self._spectral_model = value
+
+    @u.quantity_input
+    def luminosity(self, e_min: u.TeV = None, e_max: u.TeV = None) -> u.Unit("erg s-1"):
+        if (e_min is None) and (e_max is None):
+            return (
+                self.spectral_model(self.e_peak)
+                * self.e_peak**2
+                * 4
+                * np.pi
+                * self.pulsar.dist**2
+            )
+        else:
+            return (
+                self.spectral_model.energy_flux(e_min, e_max)
+                * 4
+                * np.pi
+                * self.pulsar.dist**2
+            )
+
+    @u.quantity_input
+    def P(self, lorentz_factor=None, Rc: u.m = None) -> u.Unit("erg s-1"):
+        if lorentz_factor is None:
+            lorentz_factor = self.lorentz_factor
+        if Rc is None:
+            Rc = self.pulsar.R_LC
+        return 2 * const.e.gauss**2 * const.c.cgs * lorentz_factor**4 / (3 * Rc.cgs**2)
+
+    @property
+    @u.quantity_input
+    def lorentz_factor(self) -> u.Unit(""):
+        return (
+            (
+                3
+                * np.pi
+                * 0.1
+                * self.pulsar.B_NS.to("G").value
+                / (const.c.cgs.value * const.e.gauss.value)
+            )
+            ** (1 / 4)
+            * self.pulsar.R_NS.cgs.value ** (3 / 4)
+            * self.pulsar.P0.cgs.value ** (-1 / 4)
+        )
+
+    @property
+    @u.quantity_input
+    def e_cut(self) -> u.Unit("erg"):
+        return self.lorentz_factor * const.m_e * const.c**2
+
+    @u.quantity_input
+    def N_part(
+        self, luminosity: u.Unit("erg s-1") = None, P: u.Unit("erg s-1") = None
+    ) -> u.Unit(""):
+        if luminosity is None:
+            luminosity = self.luminosity()
+        if P is None:
+            P = self.P()
+        return luminosity / P

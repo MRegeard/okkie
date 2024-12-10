@@ -1,4 +1,11 @@
-from .physical_models import Curvature, NaimaSpectralModel, Synchrotron
+from .physical_models import (
+    Curvature,
+    NaimaSpectralModel,
+    PulsarCurvature,
+    PulsarSynchrotron,
+    Synchrotron,
+    lorentz_factor,
+)
 from .pulsar import (
     B_CONST,
     DEFAULT_M_NS,
@@ -21,4 +28,7 @@ __all__ = [
     "Curvature",
     "Synchrotron",
     "NaimaSpectralModel",
+    "lorentz_factor",
+    "PulsarSynchrotron",
+    "PulsarCurvature",
 ]
