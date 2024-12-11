@@ -260,6 +260,9 @@ class ConstantPhaseModel(PhaseModel):
         """Evaluate the model (static function)."""
         return np.ones(np.atleast_1d(phase).shape) * const
 
+    def integral(self, phase_min, phase_max):
+        return self.const.value * (phase_max - phase_min)
+
 
 class CompoundPhaseModel(PhaseModel):
     tag = ["CompoundPhaseModel", "compound"]
@@ -395,10 +398,23 @@ class AsymmetricLorentzianPhaseModel(PhaseModel):
         mean = self.mean.value
         sigma_1 = self.sigma_1.value
         sigma_2 = self.sigma_2.value
-        return amplitude * (
-            sigma_1 * np.arctan((phase_max - mean) / sigma_1)
-            - sigma_2 * np.arctan((phase_min - mean) / sigma_1)
-        )
+
+        def single_side_integral(p_min, p_max, sigma):
+            return sigma * (
+                np.arctan((p_max - mean) / sigma) - np.arctan((p_min - mean) / sigma)
+            )
+
+        if phase_max <= mean:
+            # Entirely on the left side of the mean
+            return amplitude * single_side_integral(phase_min, phase_max, sigma_1)
+        elif phase_min >= mean:
+            # Entirely on the right side of the mean
+            return amplitude * single_side_integral(phase_min, phase_max, sigma_2)
+        else:
+            # Split integral at the mean
+            left_integral = single_side_integral(phase_min, mean, sigma_1)
+            right_integral = single_side_integral(mean, phase_max, sigma_2)
+            return amplitude * (left_integral + right_integral)
 
 
 class GaussianPhaseModel(PhaseModel):
@@ -489,10 +505,21 @@ class AsymmetricGaussianPhaseModel(PhaseModel):
         mean = self.mean.value
         sigma_1 = self.sigma_1.value
         sigma_2 = self.sigma_2.value
-        phase_min = (phase_min - mean) / (np.sqrt(2) * sigma_1)
-        phase_max = (phase_max - mean) / (np.sqrt(2) * sigma_2)
-        return (
-            self.amplitude.value
-            / 2
-            * (scipy.special.erf(phase_max) - scipy.special.erf(phase_min))
-        )
+        amplitude = self.amplitude.value
+
+        def single_side_integral(p_min, p_max, sigma):
+            p_min = (p_min - mean) / (np.sqrt(2) * sigma)
+            p_max = (p_max - mean) / (np.sqrt(2) * sigma)
+            return 0.5 * (scipy.special.erf(p_max) - scipy.special.erf(p_min))
+
+        if phase_max <= mean:
+            # Entirely on the left side of the mean
+            return amplitude * single_side_integral(phase_min, phase_max, sigma_1)
+        elif phase_min >= mean:
+            # Entirely on the right side of the mean
+            return amplitude * single_side_integral(phase_min, phase_max, sigma_2)
+        else:
+            # Split integral at the mean
+            left_integral = single_side_integral(phase_min, mean, sigma_1)
+            right_integral = single_side_integral(mean, phase_max, sigma_2)
+            return amplitude * (left_integral + right_integral)
