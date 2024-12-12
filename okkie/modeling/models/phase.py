@@ -452,8 +452,9 @@ class GaussianPhaseModel(PhaseModel):
         sigma = self.sigma.value
         phase_min = (phase_min - mean) / (np.sqrt(2) * sigma)
         phase_max = (phase_max - mean) / (np.sqrt(2) * sigma)
+        amplitude = self.amplitude.value * sigma * np.sqrt(np.pi * 2)
         return (
-            self.amplitude.value
+            amplitude
             / 2
             * (scipy.special.erf(phase_max) - scipy.special.erf(phase_min))
         )
