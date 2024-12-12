@@ -324,11 +324,11 @@ class LorentzianPhaseModel(PhaseModel):
     def evaluate(phase, amplitude, mean, sigma):
         """Evaluate the model"""
         phase = phase % 1
-        return amplitude / (1 + np.power((phase - mean) / (sigma / 2), 2))
+        return amplitude / (1 + np.power((phase - mean) / (sigma), 2))
 
     def to_pdf(self):
         """Return a pdf version of the model."""
-        norm_amp = 2 / (np.pi * self.sigma.value)
+        norm_amp = 1 / (np.pi * self.sigma.value)
         return self.__class__(amplitude=norm_amp, mean=self.mean, sigma=self.sigma)
 
     def integral(self, phase_min, phase_max):
@@ -347,9 +347,13 @@ class LorentzianPhaseModel(PhaseModel):
         amplitude = self.amplitude.value
         mean = self.mean.value
         sigma = self.sigma.value
-        return amplitude * sigma(
-            np.arctan((phase_max - mean) / sigma)
-            - np.arctan((phase_min - mean) / sigma)
+        return (
+            amplitude
+            * sigma
+            * (
+                np.arctan((phase_max - mean) / sigma)
+                - np.arctan((phase_min - mean) / sigma)
+            )
         )
 
 
