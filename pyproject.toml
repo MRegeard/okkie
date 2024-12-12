@@ -47,6 +47,10 @@ recommended = [
     "matplotlib>=3.6.0",
 ]
 
+tests-only = [
+    "pytest>=7.1.0",
+]
+
 # Optional IPython-related behavior is in many places in Astropy. IPython is a complex
 # dependency that occasionally requires pinning one of it's upstream dependencies. If
 # you are using Astropy from an IPython-dependent IDE, like Jupyter, this should enforce
