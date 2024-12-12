@@ -323,7 +323,6 @@ class LorentzianPhaseModel(PhaseModel):
     @staticmethod
     def evaluate(phase, amplitude, mean, sigma):
         """Evaluate the model"""
-        phase = phase % 1
         return amplitude / (1 + np.power((phase - mean) / (sigma), 2))
 
     def to_pdf(self):
@@ -369,7 +368,6 @@ class AsymmetricLorentzianPhaseModel(PhaseModel):
     @staticmethod
     def evaluate(phase, mean, amplitude, sigma_1, sigma_2):
         """Evaluate the model"""
-        phase = phase % 1
         l1 = 1 / (1 + ((phase - mean) / sigma_1) ** 2)
         l2 = 1 / (1 + ((phase - mean) / sigma_2) ** 2)
 
@@ -431,7 +429,6 @@ class GaussianPhaseModel(PhaseModel):
 
     @staticmethod
     def evaluate(phase, amplitude, mean, sigma):
-        phase = phase % 1
         return amplitude * np.exp(-((phase - mean) ** 2) / (2 * sigma**2))
 
     def to_pdf(self):
@@ -478,7 +475,6 @@ class AsymmetricGaussianPhaseModel(PhaseModel):
 
     @staticmethod
     def evaluate(phase, amplitude, mean, sigma_1, sigma_2):
-        phase = phase % 1
         g1 = np.exp(-((phase - mean) ** 2) / (2 * sigma_2**2))
         g2 = np.exp(-((phase - mean) ** 2) / (2 * sigma_2**2))
 
