@@ -4,12 +4,18 @@ import operator
 import astropy.units as u
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy
 from gammapy.maps import MapAxis
 from gammapy.modeling import Parameter
 from gammapy.modeling.models import ModelBase
 
 from okkie.utils.models import gammapy_build_parameters_from_dict
+
+from .utils import (
+    integrate_periodic_asymm_gaussian,
+    integrate_periodic_asymm_lorentzian,
+    integrate_periodic_gaussian,
+    integrate_periodic_lorentzian,
+)
 
 log = logging.getLogger(__name__)
 
@@ -24,14 +30,20 @@ __all__ = [
     "AsymmetricGaussianPhaseModel",
 ]
 
+DEFAULT_WRAPPING_TRUNCTAION = 5
+
 
 class PhaseModel(ModelBase):
     """Phase model base class."""
 
     _type = "phase"
+    period = 1
+    wrapping_truncation = DEFAULT_WRAPPING_TRUNCTAION
 
     def __call__(self, phase):
         kwargs = {par.name: par.quantity for par in self.parameters}
+        kwargs["period"] = self.period
+        kwargs["wrapping_truncation"] = self.wrapping_truncation
         return self.evaluate(phase, **kwargs)
 
     def __add__(self, model):
@@ -256,12 +268,15 @@ class ConstantPhaseModel(PhaseModel):
     const = Parameter("const", 1, interp="lin", scale_method="factor1")
 
     @staticmethod
-    def evaluate(phase, const):
+    def evaluate(phase, const, period, wrapping_truncation):
         """Evaluate the model (static function)."""
         return np.ones(np.atleast_1d(phase).shape) * const
 
     def integral(self, phase_min, phase_max):
-        return self.const.value * (phase_max - phase_min)
+        phase_min %= self.period
+        if phase_max != self.period:
+            phase_max %= self.period
+        return self.const.value * abs(phase_max - phase_min)
 
 
 class CompoundPhaseModel(PhaseModel):
@@ -321,9 +336,25 @@ class LorentzianPhaseModel(PhaseModel):
     sigma = Parameter("sigma", 0.1)
 
     @staticmethod
-    def evaluate(phase, amplitude, mean, sigma):
-        """Evaluate the model"""
-        return amplitude / (1 + np.power((phase - mean) / (sigma), 2))
+    def evaluate(phase, amplitude, mean, sigma, period, wrapping_truncation):
+        mean = mean % period
+        mean = mean.reshape((1,))  # Trick to pass in float or int
+        phase = phase % period
+        delta_phase = phase - mean
+        periodic_shifts = (
+            np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
+        )
+        delta_phase_wrapped = delta_phase[:, np.newaxis] + periodic_shifts
+
+        lorentzian = 1 / (1 + (delta_phase_wrapped / sigma) ** 2)
+
+        normalization = 0.0
+        for shift in periodic_shifts:
+            normalization += 1 / (1 + (shift / sigma) ** 2)
+
+        values = amplitude * lorentzian.sum(axis=1) / normalization
+
+        return values
 
     def to_pdf(self):
         """Return a pdf version of the model."""
@@ -343,16 +374,14 @@ class LorentzianPhaseModel(PhaseModel):
         integral: float
             Value of the integral.
         """
-        amplitude = self.amplitude.value
-        mean = self.mean.value
-        sigma = self.sigma.value
-        return (
-            amplitude
-            * sigma
-            * (
-                np.arctan((phase_max - mean) / sigma)
-                - np.arctan((phase_min - mean) / sigma)
-            )
+        return integrate_periodic_lorentzian(
+            edge_min=phase_min,
+            edge_max=phase_max,
+            amplitude=self.amplitude.value,
+            mean=self.mean.value,
+            sigma=self.sigma.value,
+            period=self.period,
+            truncation=self.wrapping_truncation,
         )
 
 
@@ -366,12 +395,29 @@ class AsymmetricLorentzianPhaseModel(PhaseModel):
     sigma_2 = Parameter("sigma_2", 0.1)
 
     @staticmethod
-    def evaluate(phase, mean, amplitude, sigma_1, sigma_2):
-        """Evaluate the model"""
-        l1 = 1 / (1 + ((phase - mean) / sigma_1) ** 2)
-        l2 = 1 / (1 + ((phase - mean) / sigma_2) ** 2)
+    def evaluate(phase, amplitude, mean, sigma_1, sigma_2, period, wrapping_truncation):
+        mean = mean % period
+        mean = mean.reshape((1,))  # Trick to pass in float or int
+        phase = phase % period
+        delta_phase = phase - mean
+        periodic_shifts = (
+            np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
+        )
+        delta_phase_wrapped = delta_phase[:, np.newaxis] + periodic_shifts
 
-        return amplitude * np.where(phase < mean, l1, l2)
+        l1 = 1 / (1 + (delta_phase_wrapped / sigma_1) ** 2)
+        l2 = 1 / (1 + (delta_phase_wrapped / sigma_2) ** 2)
+        lorentzian = np.where(delta_phase_wrapped < 0, l1, l2)
+
+        normalization = 0.0
+        for shift in periodic_shifts:
+            norm_l1 = 1 / (1 + (shift / sigma_1) ** 2)
+            norm_l2 = 1 / (1 + (shift / sigma_2) ** 2)
+            normalization += (norm_l1 + norm_l2) / 2
+
+        values = amplitude * lorentzian.sum(axis=1) / normalization
+
+        return values
 
     def to_pdf(self):
         """Return a pdf version of the model."""
@@ -401,22 +447,16 @@ class AsymmetricLorentzianPhaseModel(PhaseModel):
         sigma_1 = self.sigma_1.value
         sigma_2 = self.sigma_2.value
 
-        def single_side_integral(p_min, p_max, sigma):
-            return sigma * (
-                np.arctan((p_max - mean) / sigma) - np.arctan((p_min - mean) / sigma)
-            )
-
-        if phase_max <= mean:
-            # Entirely on the left side of the mean
-            return amplitude * single_side_integral(phase_min, phase_max, sigma_1)
-        elif phase_min >= mean:
-            # Entirely on the right side of the mean
-            return amplitude * single_side_integral(phase_min, phase_max, sigma_2)
-        else:
-            # Split integral at the mean
-            left_integral = single_side_integral(phase_min, mean, sigma_1)
-            right_integral = single_side_integral(mean, phase_max, sigma_2)
-            return amplitude * (left_integral + right_integral)
+        return integrate_periodic_asymm_lorentzian(
+            edge_min=phase_min,
+            edge_max=phase_max,
+            amplitude=amplitude,
+            mean=mean,
+            sigma_1=sigma_1,
+            sigma_2=sigma_2,
+            period=self.period,
+            truncation=self.wrapping_truncation,
+        )
 
 
 class GaussianPhaseModel(PhaseModel):
@@ -428,8 +468,23 @@ class GaussianPhaseModel(PhaseModel):
     sigma = Parameter("sigma", 0.1)
 
     @staticmethod
-    def evaluate(phase, amplitude, mean, sigma):
-        return amplitude * np.exp(-((phase - mean) ** 2) / (2 * sigma**2))
+    def evaluate(phase, amplitude, mean, sigma, period, wrapping_truncation):
+        mean = mean % period
+        mean = mean.reshape((1,))  # Trick to pass in float or int
+        phase = phase % period
+        delta_phase = phase - mean
+        periodic_shifts = (
+            np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
+        )
+        delta_phase_wrapped = delta_phase[:, np.newaxis] + periodic_shifts
+
+        gaussians = np.exp(-(delta_phase_wrapped**2) / (2 * sigma**2))
+
+        normalization = sum(
+            np.exp(-((shift) ** 2) / (2 * sigma**2)) for shift in periodic_shifts
+        )
+
+        return amplitude * gaussians.sum(axis=1) / normalization
 
     def to_pdf(self):
         """Return a pdf version of the model."""
@@ -449,15 +504,14 @@ class GaussianPhaseModel(PhaseModel):
         integral: float
             Value of the integral.
         """
-        mean = self.mean.value
-        sigma = self.sigma.value
-        phase_min = (phase_min - mean) / (np.sqrt(2) * sigma)
-        phase_max = (phase_max - mean) / (np.sqrt(2) * sigma)
-        amplitude = self.amplitude.value * sigma * np.sqrt(np.pi * 2)
-        return (
-            amplitude
-            / 2
-            * (scipy.special.erf(phase_max) - scipy.special.erf(phase_min))
+        return integrate_periodic_gaussian(
+            edge_min=phase_min,
+            edge_max=phase_max,
+            amplitude=self.amplitude.value,
+            mean=self.mean.value,
+            sigma=self.sigma.value,
+            period=self.period,
+            truncation=self.wrapping_truncation,
         )
 
 
@@ -474,15 +528,36 @@ class AsymmetricGaussianPhaseModel(PhaseModel):
     sigma_2 = Parameter("sigma_2", 0.1)
 
     @staticmethod
-    def evaluate(phase, amplitude, mean, sigma_1, sigma_2):
-        g1 = np.exp(-((phase - mean) ** 2) / (2 * sigma_2**2))
-        g2 = np.exp(-((phase - mean) ** 2) / (2 * sigma_2**2))
+    def evaluate(phase, amplitude, mean, sigma_1, sigma_2, period, wrapping_truncation):
+        mean = mean % period
+        mean = mean.reshape((1,))  # Trick to pass in float or int
+        phase = phase % period
+        delta_phase = phase - mean
+        periodic_shifts = (
+            np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
+        )
+        delta_phase_wrapped = delta_phase[:, np.newaxis] + periodic_shifts
 
-        return amplitude * np.where(phase < mean, g1, g2)
+        g1 = np.exp(-(delta_phase_wrapped**2) / (2 * sigma_1**2))
+        g2 = np.exp(-(delta_phase_wrapped**2) / (2 * sigma_2**2))
+        gaussians = np.where(delta_phase_wrapped < 0, g1, g2)
+
+        normalization = sum(
+            0.5
+            * (
+                np.exp(-((shift) ** 2) / (2 * sigma_1**2))
+                + np.exp(-((shift) ** 2) / (2 * sigma_2**2))
+            )
+            for shift in periodic_shifts
+        )
+
+        return amplitude * gaussians.sum(axis=1) / normalization
 
     def to_pdf(self):
         """Return a pdf version of the model."""
-        norm_amp = np.sqrt(2 / np.pi) * 1 / (self.sigma_1.value + self.sigma_2.value)
+        norm_amp = 2 / (
+            (np.sqrt(2 * np.pi)) * (self.sigma_1.value + self.sigma_2.value)
+        )
         return self.__class__(
             amplitude=norm_amp,
             mean=self.mean,
@@ -508,19 +583,13 @@ class AsymmetricGaussianPhaseModel(PhaseModel):
         sigma_2 = self.sigma_2.value
         amplitude = self.amplitude.value
 
-        def single_side_integral(p_min, p_max, sigma):
-            p_min = (p_min - mean) / (np.sqrt(2) * sigma)
-            p_max = (p_max - mean) / (np.sqrt(2) * sigma)
-            return 0.5 * (scipy.special.erf(p_max) - scipy.special.erf(p_min))
-
-        if phase_max <= mean:
-            # Entirely on the left side of the mean
-            return amplitude * single_side_integral(phase_min, phase_max, sigma_1)
-        elif phase_min >= mean:
-            # Entirely on the right side of the mean
-            return amplitude * single_side_integral(phase_min, phase_max, sigma_2)
-        else:
-            # Split integral at the mean
-            left_integral = single_side_integral(phase_min, mean, sigma_1)
-            right_integral = single_side_integral(mean, phase_max, sigma_2)
-            return amplitude * (left_integral + right_integral)
+        return integrate_periodic_asymm_gaussian(
+            edge_min=phase_min,
+            edge_max=phase_max,
+            amplitude=amplitude,
+            mean=mean,
+            sigma_1=sigma_1,
+            sigma_2=sigma_2,
+            period=self.period,
+            truncation=self.wrapping_truncation,
+        )
