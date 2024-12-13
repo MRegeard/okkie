@@ -10,6 +10,16 @@ from .phase import (
     PhaseModel,
 )
 from .source import SourceModel
+from .utils import (
+    integrate_asymm_gaussian,
+    integrate_asymm_lorentzian,
+    integrate_gaussian,
+    integrate_lorentzian,
+    integrate_periodic_asymm_gaussian,
+    integrate_periodic_asymm_lorentzian,
+    integrate_periodic_gaussian,
+    integrate_periodic_lorentzian,
+)
 
 __all__ = [
     "PhaseModel",
@@ -20,6 +30,14 @@ __all__ = [
     "GaussianPhaseModel",
     "AsymmetricGaussianPhaseModel",
     "SourceModel",
+    "integrate_gaussian",
+    "integrate_lorentzian",
+    "integrate_asymm_gaussian",
+    "integrate_asymm_lorentzian",
+    "integrate_periodic_gaussian",
+    "integrate_periodic_lorentzian",
+    "integrate_periodic_asymm_gaussian",
+    "integrate_periodic_asymm_lorentzian",
 ]
 
 
