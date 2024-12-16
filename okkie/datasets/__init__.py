@@ -1,3 +1,4 @@
 from .counts import CountsDataset
+from .events import EventsDataset
 
-__all__ = ["CountsDataset"]
+__all__ = ["CountsDataset", "EventsDataset"]
