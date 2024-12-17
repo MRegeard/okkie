@@ -5,6 +5,7 @@ from .physical_models import (
     PulsarSynchrotron,
     Synchrotron,
     energy_from_lorentz_factor,
+    gyroradius,
     lorentz_factor,
 )
 from .pulsar import (
@@ -33,4 +34,5 @@ __all__ = [
     "PulsarSynchrotron",
     "PulsarCurvature",
     "energy_from_lorentz_factor",
+    "gyroradius",
 ]

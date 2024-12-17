@@ -25,6 +25,7 @@ __all__ = [
     "PulsarSynchrotron",
     "PulsarCurvature",
     "energy_from_lorentz_factor",
+    "gyroradius",
 ]
 
 e = const.e.gauss
@@ -59,14 +60,14 @@ def lorentz_factor(energy: u.erg, particles="e") -> u.Unit(""):
     return (1 + energy / (PARTICLES_MASS_DICT.get(particles) * const.c**2).cgs).to("")
 
 
-@u.quantity_input()
+@u.quantity_input
 def energy_from_lorentz_factor(lorentz_factor, particles="e") -> u.Unit("erg"):
     """Return energy given a lorentz_factor and particules.
 
     Parameters
     ----------
     lorentz_factor: float
-        The lorentz_factor of the particles.
+        The lorentz factor of the particles.
     particles: str, {"e", "p", "n"}, optional
         The particles. Either "e" for electrons, "p" for protons or "n" for neutrons.
         Default is "e".
@@ -78,6 +79,32 @@ def energy_from_lorentz_factor(lorentz_factor, particles="e") -> u.Unit("erg"):
 
     """
     return (lorentz_factor - 1) * (PARTICLES_MASS_DICT.get(particles) * const.c**2)
+
+
+@u.quantity_input
+def gyroradius(
+    lorentz_factor, B: u.T, Vperp: u.Unit("m s-1") = const.c, particles="e"
+) -> u.m:
+    """Return the gyroradius of particles.
+
+    Parameters
+    ----------
+    lorentz_factor: float
+        The lorentz factor of the particles.
+    B: `~astropy.units.Quantity`
+        Magnetic field strength.
+    Vperp: `~astropy.units.Quantity`, optional
+        Velocity of the particles perpendicular to the magnetic field. Default is c.
+    particles: str, {"e", "p", "n"}, optional
+        The particles. Either "e" for electrons, "p" for protons or "n" for neutrons.
+        Default is "e".
+
+    Returns
+    -------
+    gyroradius: `~astropy.units.Quantity`
+        Gyroradius of the particles.
+    """
+    return lorentz_factor * const.c * PARTICLES_MASS_DICT.get(particles) / (const.e * B)
 
 
 def _validate_ene(ene):
