@@ -639,7 +639,7 @@ class PulsarSynchrotron:
 
     @property
     @u.quantity_input
-    def e_cut(self) -> u.Unit("erg"):
+    def e_cut(self) -> u.Unit("TeV"):
         return self.lorentz_factor * const.m_e * const.c**2
 
     @u.quantity_input
@@ -751,7 +751,7 @@ class PulsarCurvature:
 
     @property
     @u.quantity_input
-    def e_cut(self) -> u.Unit("erg"):
+    def e_cut(self) -> u.Unit("TeV"):
         return self.lorentz_factor * const.m_e * const.c**2
 
     @u.quantity_input
