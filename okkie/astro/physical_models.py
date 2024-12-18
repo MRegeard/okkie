@@ -104,7 +104,9 @@ def gyroradius(
     gyroradius: `~astropy.units.Quantity`
         Gyroradius of the particles.
     """
-    return lorentz_factor * const.c * PARTICLES_MASS_DICT.get(particles) / (const.e * B)
+    return (
+        lorentz_factor * const.c * PARTICLES_MASS_DICT.get(particles) / (const.e.si * B)
+    )
 
 
 def _validate_ene(ene):
