@@ -319,6 +319,163 @@ class NaimaSpectralModel(SpectralModel):
         )
 
 
+class SynchroCurv(BaseElectron):
+    """Synchrotron emission from an electron population.
+
+    This class uses the approximation of the synchrotron emissivity in a
+    random magnetic field of Aharonian, Kelner, and Prosekin 2010, PhysRev D
+    82, 3002 (`arXiv:1006.1045 <http://arxiv.org/abs/1006.1045>`_).
+
+    Parameters
+    ----------
+    particle_distribution : function
+    Particle distribution function, taking electron energies as a
+    `~astropy.units.Quantity` array or float, and returning the particle
+    energy density in units of number of electrons per unit energy as a
+    `~astropy.units.Quantity` array or float.
+
+    B : :class:`~astropy.units.Quantity` float instance, optional
+    Isotropic magnetic field strength. Default: equipartition
+    with CMB (3.24e-6 G)
+
+    Other Parameters
+    ----------------
+    Eemin : :class:`~astropy.units.Quantity` float instance, optional
+    Minimum electron energy for the electron distribution. Default is 1 GeV.
+
+    Eemax : :class:`~astropy.units.Quantity` float instance, optional
+    Maximum electron energy for the electron distribution. Default is 510 TeV.
+
+    nEed : scalar
+    Number of points per decade in energy for the electron energy and
+    distribution arrays. Default is 100.
+    """
+
+    def __init__(
+        self,
+        particle_distribution,
+        B=3.24e-6 * u.G,
+        Rc=1e6 * u.cm,
+        alpha=np.pi / 2.0,
+        **kwargs,
+    ):
+        super().__init__(particle_distribution)
+
+        self.B = validate_scalar("B", B, physical_type="magnetic flux density")
+        self.Rc = validate_scalar("Rc", Rc, physical_type="length")
+        self.Eemin = 1 * u.GeV
+        self.Eemax = 1e9 * mec2
+        self.nEed = 100
+        self.alpha = alpha
+        self.param_names += [
+            "B",
+            "Rc",
+            "alpha",
+        ]
+        self.__dict__.update(**kwargs)
+
+    def _spectrum(self, photon_energy):
+        """Compute intrinsic synchrotron differential spectrum for energies in ``photon_energy``
+
+        Compute synchrotron for random magnetic field according to approximation
+        of Aharonian, Kelner, and Prosekin 2010, PhysRev D 82, 3002
+        (`arXiv:1006.1045 <http://arxiv.org/abs/1006.1045>`_).
+
+        Parameters
+        ----------
+        photon_energy : :class:`~astropy.units.Quantity` instance
+        Photon energy array.
+        """
+        outspecene = _validate_ene(photon_energy)
+
+        from scipy.special import cbrt
+
+        def Gtilde(x):
+            """
+            AKP10 Eq. D7
+
+            Factor ~2 performance gain in using cbrt(x)**n vs x**(n/3.)
+            """
+            gt1 = 1.808 * cbrt(x) / np.sqrt(1 + 3.4 * cbrt(x) ** 2.0)
+            gt2 = 1 + 2.210 * cbrt(x) ** 2.0 + 0.347 * cbrt(x) ** 4.0
+            gt3 = 1 + 1.353 * cbrt(x) ** 2.0 + 0.974 * cbrt(x) ** 4.0
+            return gt1 * (gt2 / gt3) * np.exp(-x)
+
+        def Ftilde(x):
+            """
+            AKP10 Eq. D7
+
+            Factor ~2 performance gain in using cbrt(x)**n vs x**(n/3.)
+            """
+            ft1 = 2.15 * cbrt(x) * np.sqrt(cbrt(1 + 3.06 * x))
+            ft2 = 1 + 0.884 * cbrt(x) ** 2.0 + 0.471 * cbrt(x) ** 4.0
+            ft3 = 1 + 1.64 * cbrt(x) ** 2.0 + 0.217 * cbrt(x) ** 4.0
+            return ft1 * (ft2 / ft3) * np.exp(-x)
+
+        def Ktilde(x):
+            kt1 = 1.075 * cbrt(x) ** -2 * np.sqrt(cbrt(1 + 3.72 * x))
+            kt2 = 1 + 1.58 * cbrt(x) ** 2 + 3.97 * cbrt(x) ** 4
+            kt3 = 1 + 1.53 * cbrt(x) ** 2 + 4.25 * cbrt(x) ** 4
+            return kt1 * (kt2 / kt3) * np.exp(-x)
+
+        R_larm = (
+            (self._gam * (const.m_e * const.c**2).cgs.value)
+            / (e.value * self.B.to("G").value)
+            * np.sin(self.alpha)
+        )
+
+        khi = (
+            self.Rc.to("cm").value
+            / R_larm
+            * np.sin(self.alpha) ** 2
+            / np.cos(self.alpha) ** 2
+        )
+
+        Q2 = (
+            np.cos(self.alpha) ** 2
+            / self.Rc.to("cm").value
+            * np.sqrt(1 + 3 * khi + khi**2 + R_larm / self.Rc.to("cm").value)
+        )
+        Reff = (
+            self.Rc.to("cm").value
+            / np.cos(self.alpha) ** 2
+            / (1 + khi + R_larm / self.Rc.to("cm").value)
+        )
+        zz = 1 / (np.vstack(Q2) * np.vstack(Reff)) ** 2
+
+        # strip units, ensuring correct conversion
+        # astropy units do not convert correctly for gyroradius calculation when using
+        # cgs (SI is fine, see https://github.com/astropy/astropy/issues/1687)
+
+        CS1_0 = np.sqrt(3) * const.e.value**2 * np.vstack(self._gam)
+        CS1_1 = 4 * np.pi * const.hbar.cgs.value * np.vstack(Reff)
+
+        CS1 = CS1_0 / CS1_1
+
+        # Critical energy, erg
+        Ec = 3 / 2.0 * (const.hbar * const.c).cgs.value * self._gam**3 * Q2
+        Ec = 3 / 2.0 * (const.hbar * const.c).cgs.value * self._gam**3 * Q2
+        EgEc = outspecene.to("erg").value / np.vstack(Ec)
+
+        CCC_0 = np.sqrt(3) * const.e.value**2 * np.vstack(self._gam)
+        CCC_1 = (
+            4 * np.pi * const.hbar.cgs.value * self.Rc.to("cm").value
+        )  # *outspecene.to('erg').value
+
+        dNdE = (
+            CS1
+            * ((1 + zz) * Ftilde(EgEc) - (1 - zz) * Ktilde(EgEc))
+            / outspecene.to("erg").value
+        )
+
+        spec = (
+            trapz_loglog(np.vstack(self._nelec) * dNdE, self._gam, axis=0) / u.s / u.erg
+        )
+        spec = spec.to("1/(s eV)")
+
+        return spec
+
+
 class Curvature(BaseElectron):
     def __init__(self, particle_distribution, Rc=1e6 * u.cm, **kwargs):
         super().__init__(particle_distribution)
