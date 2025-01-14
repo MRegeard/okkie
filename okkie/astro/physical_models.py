@@ -20,6 +20,7 @@ log = logging.getLogger(__name__)
 __all__ = [
     "Curvature",
     "Synchrotron",
+    "SynchroCurvature",
     "NaimaSpectralModel",
     "lorentz_factor",
     "PulsarSynchrotron",
@@ -319,7 +320,7 @@ class NaimaSpectralModel(SpectralModel):
         )
 
 
-class SynchroCurv(BaseElectron):
+class SynchroCurvature(BaseElectron):
     """Synchrotron emission from an electron population.
 
     This class uses the approximation of the synchrotron emissivity in a
@@ -456,11 +457,6 @@ class SynchroCurv(BaseElectron):
         Ec = 3 / 2.0 * (const.hbar * const.c).cgs.value * self._gam**3 * Q2
         Ec = 3 / 2.0 * (const.hbar * const.c).cgs.value * self._gam**3 * Q2
         EgEc = outspecene.to("erg").value / np.vstack(Ec)
-
-        CCC_0 = np.sqrt(3) * const.e.value**2 * np.vstack(self._gam)
-        CCC_1 = (
-            4 * np.pi * const.hbar.cgs.value * self.Rc.to("cm").value
-        )  # *outspecene.to('erg').value
 
         dNdE = (
             CS1
