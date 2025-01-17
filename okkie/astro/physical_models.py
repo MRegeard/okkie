@@ -451,7 +451,7 @@ class SynchroCurvature(BaseElectron):
         # astropy units do not convert correctly for gyroradius calculation when using
         # cgs (SI is fine, see https://github.com/astropy/astropy/issues/1687)
 
-        CS1_0 = np.sqrt(3) * const.e.value**2 * np.vstack(self._gam)
+        CS1_0 = np.sqrt(3) * e.value**2 * np.vstack(self._gam)
         CS1_1 = 4 * np.pi * const.hbar.cgs.value * np.vstack(Reff)
 
         CS1 = CS1_0 / CS1_1
