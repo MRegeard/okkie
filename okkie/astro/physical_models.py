@@ -202,6 +202,11 @@ class NaimaSpectralModel(SpectralModel):
             parameter = Parameter("Rc", value)
             parameters.append(parameter)
 
+        if "pitch" in self.radiative_model.param_names:
+            value = self.radiative_model.pitch
+            parameter = Parameter("pitch", value)
+            parameters.append(parameter)
+
         self.default_parameters = Parameters(parameters)
         self.ssc_energy = np.logspace(-7, 9, 100) * u.eV
         super().__init__()
@@ -357,21 +362,21 @@ class SynchroCurvature(BaseElectron):
         particle_distribution,
         B=3.24e-6 * u.G,
         Rc=1e6 * u.cm,
-        alpha=np.pi / 2.0,
+        pitch=np.pi / 2.0,
         **kwargs,
     ):
         super().__init__(particle_distribution)
 
         self.B = validate_scalar("B", B, physical_type="magnetic flux density")
-        self.Rc = validate_scalar("Rc", Rc, physical_type="length")
+        self.Rc = validate_scalar("Rc", Rc, physical_type=u.get_physical_type(u.m))
         self.Eemin = 1 * u.GeV
         self.Eemax = 1e9 * mec2
         self.nEed = 100
-        self.alpha = alpha
+        self.pitch = pitch
         self.param_names += [
             "B",
             "Rc",
-            "alpha",
+            "pitch",
         ]
         self.__dict__.update(**kwargs)
 
@@ -389,17 +394,15 @@ class SynchroCurvature(BaseElectron):
         """
         outspecene = _validate_ene(photon_energy)
 
-        from scipy.special import cbrt
-
         def Gtilde(x):
             """
             AKP10 Eq. D7
 
             Factor ~2 performance gain in using cbrt(x)**n vs x**(n/3.)
             """
-            gt1 = 1.808 * cbrt(x) / np.sqrt(1 + 3.4 * cbrt(x) ** 2.0)
-            gt2 = 1 + 2.210 * cbrt(x) ** 2.0 + 0.347 * cbrt(x) ** 4.0
-            gt3 = 1 + 1.353 * cbrt(x) ** 2.0 + 0.974 * cbrt(x) ** 4.0
+            gt1 = 1.808 * x ** (1 / 3) / np.sqrt(1 + 3.4 * x ** (2 / 3))
+            gt2 = 1 + 2.210 * x ** (2 / 3) + 0.347 * x ** (4 / 3)
+            gt3 = 1 + 1.353 * x ** (2 / 3) + 0.974 * x ** (4 / 3)
             return gt1 * (gt2 / gt3) * np.exp(-x)
 
         def Ftilde(x):
@@ -408,38 +411,38 @@ class SynchroCurvature(BaseElectron):
 
             Factor ~2 performance gain in using cbrt(x)**n vs x**(n/3.)
             """
-            ft1 = 2.15 * cbrt(x) * np.sqrt(cbrt(1 + 3.06 * x))
-            ft2 = 1 + 0.884 * cbrt(x) ** 2.0 + 0.471 * cbrt(x) ** 4.0
-            ft3 = 1 + 1.64 * cbrt(x) ** 2.0 + 0.217 * cbrt(x) ** 4.0
+            ft1 = 2.15 * x ** (1 / 3) * np.sqrt((1 + 3.06 * x) ** (1 / 3))
+            ft2 = 1 + 0.884 * x ** (2 / 3) + 0.471 * x ** (4 / 3)
+            ft3 = 1 + 1.64 * x ** (2 / 3) + 0.217 * x ** (4 / 3)
             return ft1 * (ft2 / ft3) * np.exp(-x)
 
         def Ktilde(x):
-            kt1 = 1.075 * cbrt(x) ** -2 * np.sqrt(cbrt(1 + 3.72 * x))
-            kt2 = 1 + 1.58 * cbrt(x) ** 2 + 3.97 * cbrt(x) ** 4
-            kt3 = 1 + 1.53 * cbrt(x) ** 2 + 4.25 * cbrt(x) ** 4
+            kt1 = 1.075 * x ** (-2 / 3) * np.sqrt((1 + 3.72 * x) ** (1 / 3))
+            kt2 = 1 + 1.58 * x ** (2 / 3) + 3.97 * x ** (4 / 3)
+            kt3 = 1 + 1.53 * x ** (2 / 3) + 4.25 * x ** (4 / 3)
             return kt1 * (kt2 / kt3) * np.exp(-x)
 
         R_larm = (
             (self._gam * (const.m_e * const.c**2).cgs.value)
             / (e.value * self.B.to("G").value)
-            * np.sin(self.alpha)
+            * np.sin(self.pitch)
         )
 
         khi = (
             self.Rc.to("cm").value
             / R_larm
-            * np.sin(self.alpha) ** 2
-            / np.cos(self.alpha) ** 2
+            * np.sin(self.pitch) ** 2
+            / np.cos(self.pitch) ** 2
         )
 
         Q2 = (
-            np.cos(self.alpha) ** 2
+            np.cos(self.pitch) ** 2
             / self.Rc.to("cm").value
             * np.sqrt(1 + 3 * khi + khi**2 + R_larm / self.Rc.to("cm").value)
         )
         Reff = (
             self.Rc.to("cm").value
-            / np.cos(self.alpha) ** 2
+            / np.cos(self.pitch) ** 2
             / (1 + khi + R_larm / self.Rc.to("cm").value)
         )
         zz = 1 / (np.vstack(Q2) * np.vstack(Reff)) ** 2
@@ -455,11 +458,11 @@ class SynchroCurvature(BaseElectron):
 
         # Critical energy, erg
         Ec = 3 / 2.0 * (const.hbar * const.c).cgs.value * self._gam**3 * Q2
-        Ec = 3 / 2.0 * (const.hbar * const.c).cgs.value * self._gam**3 * Q2
         EgEc = outspecene.to("erg").value / np.vstack(Ec)
 
         dNdE = (
             CS1
+            * EgEc
             * ((1 + zz) * Ftilde(EgEc) - (1 - zz) * Ktilde(EgEc))
             / outspecene.to("erg").value
         )
@@ -549,6 +552,7 @@ class Curvature(BaseElectron):
         Ec /= 2 * self.Rc.to("cm").value
 
         EgEc = outspecene.to("erg").value / np.vstack(Ec)
+
         if self.use_Ftilde:
             dNdE = CS1 * Ftilde(EgEc)
         else:
