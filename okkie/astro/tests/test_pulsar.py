@@ -103,6 +103,32 @@ def test_pulsar_from_ephemeris():
     assert pulsar.name == "PSR J0614-3329"
 
 
+def test_pulsar_from_3PC():
+    pulsar = Pulsar.from_3PC("PSR J0835-4510")
+    assert pulsar.name == "J0835-4510"
+    assert_allclose(pulsar.P0, 0.089371088 * u.s)
+    assert_allclose(pulsar.P1, 1.2229370554818526e-13)
+    assert_allclose(pulsar.dist, 0.28 * u.kpc)
+    assert_allclose(pulsar.position.ra, 128.83588120833335 * u.deg)
+    assert_allclose(pulsar.position.dec, -45.17635419444444 * u.deg)
+
+    pulsar = Pulsar.from_3PC("J0835-4510")
+    assert pulsar.name == "J0835-4510"
+    assert_allclose(pulsar.P0, 0.089371088 * u.s)
+    assert_allclose(pulsar.P1, 1.2229370554818526e-13)
+    assert_allclose(pulsar.dist, 0.28 * u.kpc)
+    assert_allclose(pulsar.position.ra, 128.83588120833335 * u.deg)
+    assert_allclose(pulsar.position.dec, -45.17635419444444 * u.deg)
+
+    pulsar = Pulsar.from_3PC("B1706-44", name="B1706-44")
+    assert pulsar.name == "B1706-44"
+    assert_allclose(pulsar.P0, 0.10250361421773983 * u.s)
+    assert_allclose(pulsar.P1, 9.480825463397385e-14)
+    assert_allclose(pulsar.dist, 2.6 * u.kpc)
+    assert_allclose(pulsar.position.ra, 257.4281179166666 * u.deg)
+    assert_allclose(pulsar.position.dec, -44.485658055555554 * u.deg)
+
+
 def test_GJ_density():
     assert_allclose(
         GJ_density(62 / u.s, 0.1 * rlc, 1e7 * u.G, 90 * u.deg, 90 * u.deg),
