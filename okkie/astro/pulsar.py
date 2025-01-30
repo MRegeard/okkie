@@ -415,11 +415,11 @@ Setting position to Galactic center.""")
         pulsar: `Pulsar`
             Pulsar instance.
         """
+        cat = SourceCatalog3PC()
         if source_name.startswith("PSR "):
             source_name = source_name[4:]
-        cat = SourceCatalog3PC()
         if source_name.startswith("B"):
-            source_name = cat.table[cat.table["NAME"] == source_name]["PSRJ"]
+            source_name = cat.table[cat.table["NAME"] == source_name]["PSRJ"][0]
         source = cat[cat.row_index(source_name)]
         P0 = source.data["P0"] * u.s
         P1 = source.data["P1"]
