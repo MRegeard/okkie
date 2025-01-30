@@ -5,6 +5,7 @@ import astropy.units as u
 import numpy as np
 import pint.models as pmodels
 from astropy.coordinates import Angle, SkyCoord
+from gammapy.catalog import SourceCatalog3PC
 from gammapy.utils.scripts import make_name, make_path
 
 log = logging.getLogger(__name__)
@@ -399,6 +400,42 @@ Setting position to Galactic center.""")
         kwargs.setdefault("F1", F1)
 
         return cls.from_frequency(**kwargs)
+
+    @classmethod
+    def from_3PC(cls, source_name, **kwargs):
+        """Create from the 3PC.
+
+        Parameters
+        ----------
+        source_name: str
+            Name of the pulsar to fetch in the catalog.
+
+        Returns
+        -------
+        pulsar: `Pulsar`
+            Pulsar instance.
+        """
+        if source_name.startswith("PSR "):
+            source_name = source_name[4:]
+        cat = SourceCatalog3PC()
+        if source_name.startswith("B"):
+            source_name = cat.table[cat.table["NAME"] == source_name]["PSRJ"]
+        source = cat[cat.row_index(source_name)]
+        P0 = source.data["P0"] * u.s
+        P1 = source.data["P1"]
+        try:
+            dist = float(source.data["D3PC"]) * u.kpc
+        except (KeyError, ValueError):
+            dist = 1 * u.kpc
+        pos = SkyCoord(
+            ra=source.data["RAJD"], dec=source.data["DECJD"], unit="deg", frame="icrs"
+        )
+        kwargs.setdefault("position", pos)
+        kwargs.setdefault("name", source_name)
+        kwargs.setdefault("P0", P0)
+        kwargs.setdefault("P1", P1)
+        kwargs.setdefault("dist", dist)
+        return cls(**kwargs)
 
 
 class PulsarGeom:
