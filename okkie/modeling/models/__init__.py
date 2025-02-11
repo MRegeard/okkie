@@ -1,5 +1,6 @@
 from gammapy.utils.registry import Registry
 
+from .luminosity import LuminosityModel
 from .phase import (
     AsymmetricGaussianPhaseModel,
     AsymmetricLorentzianPhaseModel,
@@ -38,6 +39,7 @@ __all__ = [
     "integrate_periodic_lorentzian",
     "integrate_periodic_asymm_gaussian",
     "integrate_periodic_asymm_lorentzian",
+    "LuminosityModel",
 ]
 
 
