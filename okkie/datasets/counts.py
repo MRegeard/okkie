@@ -40,12 +40,14 @@ class CountsDataset(Dataset):
         name=None,
         meta_table=None,
         mask_fit=None,
-    ) -> None:
+        mask_safe=None,
+    ):
         self.counts = counts
         self.models = models
         self._name = make_name(name)
         self.meta_table = meta_table
         self.mask_fit = mask_fit
+        self.mask_safe = mask_safe
 
     @property
     def models(self) -> Models:
@@ -119,6 +121,11 @@ class CountsDataset(Dataset):
         """Total statistic function value given the current parameters."""
         counts = self.counts.data.astype(float)
         npred = self.npred().data.astype(float)
+
+        if self.mask is not None:
+            mask = ~(self.mask.data == False)  # noqa: E712
+            counts = counts[mask]
+            npred = npred[mask]
 
         return cash_sum_cython(counts.ravel(), npred.ravel())
 
