@@ -7,14 +7,16 @@ import numpy as np
 from gammapy.maps import MapAxis
 from gammapy.modeling import Parameter
 from gammapy.modeling.models import ModelBase
+from gammapy.utils.interpolation import ScaledRegularGridInterpolator
 
 from okkie.utils.models import gammapy_build_parameters_from_dict
 
-from .utils import (
+from .integral import (
     integrate_periodic_asymm_gaussian,
     integrate_periodic_asymm_lorentzian,
     integrate_periodic_gaussian,
     integrate_periodic_lorentzian,
+    integrate_trapezoid,
 )
 
 log = logging.getLogger(__name__)
@@ -28,6 +30,8 @@ __all__ = [
     "AsymmetricLorentzianPhaseModel",
     "GaussianPhaseModel",
     "AsymmetricGaussianPhaseModel",
+    "TemplatePhaseModel",
+    "ScalePhaseModel",
 ]
 
 DEFAULT_WRAPPING_TRUNCTAION = 5
@@ -162,7 +166,7 @@ class PhaseModel(ModelBase):
             kwargs = {par.name: par.quantity for par in self.parameters}
             return self.evaluate_integral(phase_min, phase_max, **kwargs)
         else:
-            NotImplemented(f"Integral is not implemented for {self!r}")
+            return integrate_trapezoid(self, phase_min, phase_max)
 
     def integral_error(self, phase_min, phase_max, epsilon=1e-4, **kwargs):
         """Evaluate the error of the integral of a given phase model in a given phase range.
@@ -179,7 +183,7 @@ class PhaseModel(ModelBase):
         Returns
         -------
         integral, integral_err : tuple of `~astropy.units.Quantity`
-            Integral and assocaited error between phase_min and phase_max.
+            Integral and associated error between phase_min and phase_max.
         """
         return self._propagate_error(
             epsilon=epsilon,
@@ -593,3 +597,86 @@ class AsymmetricGaussianPhaseModel(PhaseModel):
             period=self.period,
             truncation=self.wrapping_truncation,
         )
+
+
+class TemplatePhaseModel(PhaseModel):
+    """A model generated for an array of phase and associated values.
+
+    Parameters
+    ----------
+    phase : `~numpy.ndarray`
+        Array of phases at which the model values are given
+    values : `~numpy.ndarray`
+        Array with the values of the model at phases ``phase``.
+    phase_shift : float
+        Shift to apply to the phase to shift the template. Shifted phases wrap at the period.
+        Default is 0.
+    interp_kwargs : dict
+        Interpolation option passed to `~gammapy.utils.interpolation.ScaledRegularGridInterpolator`.
+        By default, all values outside the interpolation range are set to NaN.
+        If you want to apply linear extrapolation you can pass `interp_kwargs={'extrapolate':
+        True, 'method': 'linear'}`. If you want to choose the interpolation
+        scaling applied to values, you can use `interp_kwargs={"values_scale": "log"}`.
+    """
+
+    tag = ["TemplatePhaseModel", "temp-phase"]
+    phase_shift = Parameter("phase_shift", 0)
+
+    def __init__(self, phase, values, phase_shift=0, interp_kwargs=None):
+        self.phase = phase
+        self.values = values
+        interp_kwargs = interp_kwargs or {}
+        interp_kwargs.setdefault("values_scale", "lin")
+        interp_kwargs.setdefault("points_scale", ("log",))
+
+        if len(phase) == 1:
+            interp_kwargs["method"] = "nearest"
+
+        self._evaluate = ScaledRegularGridInterpolator(
+            points=(phase,), values=values, **interp_kwargs
+        )
+
+        super().__init__()
+        self.phase_shift.value = phase_shift
+
+    def evaluate(self, phase, phase_shift, period, wrapping_truncation):
+        shifted_phase = (phase + phase_shift) % period
+        return self._evaluate((shifted_phase,), clip=True)
+
+    def to_pdf(self, interp_kwargs=None):
+        """Return a pdf version of the model."""
+        interp_kwargs = interp_kwargs or {}
+        norm = 1 / self.integral(0, self.period)
+        return self.__class__(
+            phase=self.phase,
+            values=self.values * norm,
+            phase_shift=self.phase_shift.value,
+            interp_kwargs=interp_kwargs,
+        )
+
+
+class ScalePhaseModel(PhaseModel):
+    """Wrapper to scale another phase model by a norm factor.
+
+    Parameters
+    ----------
+    model : `PhaseModel`
+        Phase model to wrap.
+    norm : float
+        Multiplicative norm factor for the model value.
+        Default is 1.
+    """
+
+    tag = ["ScalePhaseModel", "scale"]
+    norm = Parameter("norm", 1)
+
+    def __init__(self, model, norm=norm.quantity):
+        self.model = model
+        self._covariance = None
+        super().__init__(norm=norm)
+
+    def evaluate(self, phase, norm, period, wrapping_truncation):
+        return norm * self.model(phase)
+
+    def integral(self, phase_min, phase_max, **kwargs):
+        return self.norm.value * self.model.integral(phase_min, phase_max, **kwargs)
