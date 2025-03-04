@@ -280,6 +280,12 @@ class NaimaSpectralModel(SpectralModel):
         if "B" in self.radiative_model.param_names:
             self.radiative_model.B = self.B.quantity
 
+        if "Rc" in self.radiative_model.param_names:
+            self.radiative_model.Rc = self.Rc.quantity
+
+        if "pitch" in self.radiative_model.param_names:
+            self.radiative_model.pitch = self.pitch.quantity
+
     def evaluate(self, energy, **kwargs):
         """Evaluate the model.
 
