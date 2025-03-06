@@ -271,7 +271,6 @@ class FermiPhaseMaker:
             toa_list=toa_list,
             ephem=self.ephem,
             include_bipm=self.include_bipm,
-            include_gps=self.include_gps,
             planets=self.planets,
         )
 
