@@ -12,6 +12,7 @@ from naima.extern.validator import (
 )
 from naima.radiative import BaseElectron
 from naima.utils import trapz_loglog
+from scipy.special import cbrt
 
 from .pulsar import Pulsar
 
@@ -126,6 +127,33 @@ def _validate_ene(ene):
         validate_physical_type("energy", ene, physical_type="energy")
 
     return ene
+
+
+def Gtilde(x):
+    """
+    AKP10 Eq. D7
+
+    Factor ~2 performance gain in using cbrt(x)**n vs x**(n/3.)
+    Invoking crbt only once reduced time by ~40%
+    """
+    cb = cbrt(x)
+    gt1 = 1.808 * cb / np.sqrt(1 + 3.4 * cb**2.0)
+    gt2 = 1 + 2.210 * cb**2.0 + 0.347 * cb**4.0
+    gt3 = 1 + 1.353 * cb**2.0 + 0.217 * cb**4.0
+    return gt1 * (gt2 / gt3) * np.exp(-x)
+
+
+def Ftilde(x):
+    """
+    AKP10 Eq. D6
+
+    Factor ~2 performance gain in using cbrt(x)**n vs x**(n/3.)
+    """
+    cb = cbrt(x)
+    ft1 = 2.15 * cb * np.sqrt(cbrt(1 + 3.06 * x))
+    ft2 = 1 + 0.884 * cb**2.0 + 0.471 * cb**4.0
+    ft3 = 1 + 1.64 * cb**2.0 + 0.974 * cb**4.0
+    return ft1 * (ft2 / ft3) * np.exp(-x)
 
 
 class NaimaSpectralModel(SpectralModel):
@@ -400,28 +428,6 @@ class SynchroCurvature(BaseElectron):
         """
         outspecene = _validate_ene(photon_energy)
 
-        def Gtilde(x):
-            """
-            AKP10 Eq. D7
-
-            Factor ~2 performance gain in using cbrt(x)**n vs x**(n/3.)
-            """
-            gt1 = 1.808 * x ** (1 / 3) / np.sqrt(1 + 3.4 * x ** (2 / 3))
-            gt2 = 1 + 2.210 * x ** (2 / 3) + 0.347 * x ** (4 / 3)
-            gt3 = 1 + 1.353 * x ** (2 / 3) + 0.974 * x ** (4 / 3)
-            return gt1 * (gt2 / gt3) * np.exp(-x)
-
-        def Ftilde(x):
-            """
-            AKP10 Eq. D7
-
-            Factor ~2 performance gain in using cbrt(x)**n vs x**(n/3.)
-            """
-            ft1 = 2.15 * x ** (1 / 3) * np.sqrt((1 + 3.06 * x) ** (1 / 3))
-            ft2 = 1 + 0.884 * x ** (2 / 3) + 0.471 * x ** (4 / 3)
-            ft3 = 1 + 1.64 * x ** (2 / 3) + 0.217 * x ** (4 / 3)
-            return ft1 * (ft2 / ft3) * np.exp(-x)
-
         def Ktilde(x):
             kt1 = 1.075 * x ** (-2 / 3) * np.sqrt((1 + 3.72 * x) ** (1 / 3))
             kt2 = 1 + 1.58 * x ** (2 / 3) + 3.97 * x ** (4 / 3)
@@ -518,30 +524,6 @@ class Curvature(BaseElectron):
         Photon energy array.
         """
         outspecene = _validate_ene(photon_energy)
-
-        from scipy.special import cbrt
-
-        def Gtilde(x):
-            """
-            AKP10 Eq. D7
-
-            Factor ~2 performance gain in using cbrt(x)**n vs x**(n/3.)
-            """
-            gt1 = 1.808 * cbrt(x) / np.sqrt(1 + 3.4 * cbrt(x) ** 2.0)
-            gt2 = 1 + 2.210 * cbrt(x) ** 2.0 + 0.347 * cbrt(x) ** 4.0
-            gt3 = 1 + 1.353 * cbrt(x) ** 2.0 + 0.217 * cbrt(x) ** 4.0
-            return gt1 * (gt2 / gt3) * np.exp(-x)
-
-        def Ftilde(x):
-            """
-            AKP10 Eq. D6
-
-            Factor ~2 performance gain in using cbrt(x)**n vs x**(n/3.)
-            """
-            ft1 = 2.15 * cbrt(x) * np.sqrt(cbrt(1 + 3.06 * x))
-            ft2 = 1 + 0.884 * cbrt(x) ** 2.0 + 0.471 * cbrt(x) ** 4.0
-            ft3 = 1 + 1.64 * cbrt(x) ** 2.0 + 0.217 * cbrt(x) ** 4.0
-            return ft1 * (ft2 / ft3) * np.exp(-x)
 
         log.debug("calc_sy: Starting synchrotron computation with AKB2010...")
 
@@ -640,32 +622,6 @@ class Synchrotron(BaseElectron):
             Photon energy array.
         """
         outspecene = _validate_ene(photon_energy)
-
-        from scipy.special import cbrt
-
-        def Gtilde(x):
-            """
-            AKP10 Eq. D7
-
-            Factor ~2 performance gain in using cbrt(x)**n vs x**(n/3.)
-            Invoking crbt only once reduced time by ~40%
-            """
-            cb = cbrt(x)
-            gt1 = 1.808 * cb / np.sqrt(1 + 3.4 * cb**2.0)
-            gt2 = 1 + 2.210 * cb**2.0 + 0.347 * cb**4.0
-            gt3 = 1 + 1.353 * cb**2.0 + 0.217 * cb**4.0
-            return gt1 * (gt2 / gt3) * np.exp(-x)
-
-        def Ftilde(x):
-            """
-            AKP10 Eq. D6
-
-            Factor ~2 performance gain in using cbrt(x)**n vs x**(n/3.)
-            """
-            ft1 = 2.15 * cbrt(x) * np.sqrt(cbrt(1 + 3.06 * x))
-            ft2 = 1 + 0.884 * cbrt(x) ** 2.0 + 0.471 * cbrt(x) ** 4.0
-            ft3 = 1 + 1.64 * cbrt(x) ** 2.0 + 0.217 * cbrt(x) ** 4.0
-            return ft1 * (ft2 / ft3) * np.exp(-x)
 
         log.debug("calc_sy: Starting synchrotron computation with AKB2010...")
 
