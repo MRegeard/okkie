@@ -6,7 +6,7 @@ import numpy as np
 import pint.models as pmodels
 from astropy.coordinates import Angle, SkyCoord
 from gammapy.catalog import SourceCatalog3PC
-from gammapy.utils.scripts import make_name, make_path
+from gammapy.utils.scripts import make_path
 
 log = logging.getLogger(__name__)
 
@@ -113,7 +113,7 @@ class Pulsar:
             self.geom = geom
         self.M_NS = M_NS
         self.dist = dist
-        self._name = make_name(name)
+        self.name = name
         self.position = position
 
     @property
@@ -244,9 +244,12 @@ class Pulsar:
         self._dist = u.Quantity(value, "kpc")
 
     @property
-    def name(self):
-        """Name of the pulsar."""
-        return self._name
+    def psr_name(self):
+        """Full pulsar name in the format PSR JXXXX-XXXX or PSR BXXXX-XX."""
+        if self.name.startswith("PSR "):
+            return self.name
+        else:
+            return "PSR " + self.name
 
     @property
     def position(self):
@@ -255,15 +258,17 @@ class Pulsar:
 
     @position.setter
     def position(self, value):
-        if value is None:
+        if (value is None) and (self.name is None):
+            self._position = None
+            return
+        elif value is None:
             try:
-                position = SkyCoord.from_name(self.name)
+                position = SkyCoord.from_name(self.psr_name)
                 self._position = position
             except Exception:
-                log.warning("""Error while trying to get the pulsar position. This is likely due to not properly defined pulsar name:
-{self.name}, or connection error.
-Setting position to Galactic center.""")
-                self._position = SkyCoord(0, 0, unit="deg", frame="galactic")
+                log.warning("""Error while trying to get the pulsar position. This is likely due to not properly defined
+pulsar name or network connection error. Setting position to `None`.""")
+                self._position = None
         else:
             if not isinstance(value, SkyCoord):
                 raise TypeError(
@@ -423,6 +428,7 @@ Setting position to Galactic center.""")
         source = cat[cat.row_index(source_name)]
         P0 = source.data["P0"] * u.s
         P1 = source.data["P1"]
+        age = source.data["Age"] * u.yr
         try:
             dist = float(source.data["D3PC"]) * u.kpc
         except (KeyError, ValueError):
@@ -435,6 +441,7 @@ Setting position to Galactic center.""")
         kwargs.setdefault("P0", P0)
         kwargs.setdefault("P1", P1)
         kwargs.setdefault("dist", dist)
+        kwargs.setdefault("age", age)
         return cls(**kwargs)
 
 
