@@ -32,6 +32,7 @@ __all__ = [
     "AsymmetricGaussianPhaseModel",
     "TemplatePhaseModel",
     "ScalePhaseModel",
+    "GatePhaseModel",
 ]
 
 DEFAULT_WRAPPING_TRUNCTAION = 5
@@ -680,3 +681,16 @@ class ScalePhaseModel(PhaseModel):
 
     def integral(self, phase_min, phase_max, **kwargs):
         return self.norm.value * self.model.integral(phase_min, phase_max, **kwargs)
+
+
+class GatePhaseModel(PhaseModel):
+    tag = ["GatePhaseModel", "gate"]
+    amplitude = Parameter("amplitude", 1)
+    phi_1 = Parameter("phi_1", "0.25")
+    phi_2 = Parameter("phi_2", "0.75")
+
+    def evaluate(self, phase, amplitude, phi_1, phi_2, period, wrapping_truncation):
+        return np.where((phase > phi_1) & (phase < phi_2), amplitude, 0)
+
+    def integral(self, phase_min, phase_max, **kwargs):
+        return self.amplitude.value * (self.phi_2.value - self.phi_1.value)
