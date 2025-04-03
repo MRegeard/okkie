@@ -9,7 +9,7 @@ from astropy.time import Time
 from gammapy.data import EventList
 from gammapy.utils.scripts import make_path
 from pint import toa
-from pint.fermi_toas import load_Fermi_TOAs
+from pint.fermi_toas import get_Fermi_TOAs
 from pint.observatory.satellite_obs import get_satellite_observatory
 
 log = logging.getLogger(__name__)
@@ -260,21 +260,17 @@ class FermiPhaseMaker:
     def compute_phase(self, **kwargs):
         get_satellite_observatory("Fermi", self.spacecraft_file, overwrite=True)
 
-        toa_list = load_Fermi_TOAs(
+        toas = get_Fermi_TOAs(
             ft1name=self.event_file,
             weightcolumn=self.weightcolumn,
             targetcoord=self.targetcoord,
-            **kwargs,
-        )
-
-        ts = toa.get_TOAs_list(
-            toa_list=toa_list,
             ephem=self.ephem,
             include_bipm=self.include_bipm,
             planets=self.planets,
+            **kwargs,
         )
 
-        phases = self.model.phase(toas=ts, abs_phase=True)[1]
+        phases = self.model.phase(toas=toas, abs_phase=True)[1]
         self.phases = np.where(phases < 0.0, phases + 1.0, phases)
 
     def write_column_and_meta(
