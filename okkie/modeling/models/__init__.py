@@ -1,5 +1,6 @@
 from gammapy.utils.registry import Registry
 
+from .extra import Sigmoid
 from .integral import (
     integrate_asymm_gaussian,
     integrate_asymm_lorentzian,
@@ -25,7 +26,7 @@ from .phase import (
     TemplatePhaseModel,
 )
 from .source import SourceModel
-from .utils import sum_models
+from .utils import sum_models, validate_ene
 
 __all__ = [
     "PhaseModel",
@@ -50,6 +51,8 @@ __all__ = [
     "integrate_periodic_asymm_lorentzian",
     "LuminosityModel",
     "sum_models",
+    "validate_ene",
+    "Sigmoid",
 ]
 
 
