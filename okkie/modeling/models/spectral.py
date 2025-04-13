@@ -2,6 +2,8 @@ import numpy as np
 from gammapy.modeling import Parameter
 from gammapy.modeling.models import SpectralModel
 
+__all__ = ["SuperExpCutoffPowerLaw3PCSpectralModel"]
+
 
 class SuperExpCutoffPowerLaw3PCSpectralModel(SpectralModel):
     r"""Spectral super exponential cutoff power-law model used for 3PC.

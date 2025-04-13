@@ -26,6 +26,7 @@ from .phase import (
     TemplatePhaseModel,
 )
 from .source import SourceModel
+from .spectral import SuperExpCutoffPowerLaw3PCSpectralModel
 from .utils import sum_models, validate_ene
 
 __all__ = [
@@ -53,6 +54,7 @@ __all__ = [
     "sum_models",
     "validate_ene",
     "Sigmoid",
+    "SuperExpCutoffPowerLaw3PCSpectralModel",
 ]
 
 
