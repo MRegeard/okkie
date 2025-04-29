@@ -2,11 +2,14 @@ import numpy as np
 from gammapy.modeling import Parameter
 from gammapy.modeling.models import SpectralModel
 
-__all__ = ["SuperExpCutoffPowerLaw3PCSpectralModel"]
+__all__ = ["SuperExpCutoffPowerLaw4FGLDR3SpectralModelCor"]
 
 
-class SuperExpCutoffPowerLaw3PCSpectralModel(SpectralModel):
-    r"""Spectral super exponential cutoff power-law model used for 3PC.
+class SuperExpCutoffPowerLaw4FGLDR3SpectralModelCor(SpectralModel):
+    r"""Spectral super exponential cutoff power-law model used for 4FGL-DR3.
+
+    See equations (2) and (3) of https://arxiv.org/pdf/2201.11184.pdf
+    For more information see :ref:`super-exp-cutoff-powerlaw-4fgl-dr3-spectral-model`.
 
     Parameters
     ----------
@@ -22,7 +25,7 @@ class SuperExpCutoffPowerLaw3PCSpectralModel(SpectralModel):
         :math:`\Gamma_2`. Default is 2.
     """
 
-    tag = ["SuperExpCutoffPowerLaw4FGLDR3SpectralModel", "secpl-4fgl-dr3"]
+    tag = ["SuperExpCutoffPowerLaw4FGLDR3SpectralModelCor", "secpl-4fgl-dr3-cor"]
     amplitude = Parameter(
         name="amplitude",
         value="1e-12 cm-2 s-1 TeV-1",
@@ -43,6 +46,12 @@ class SuperExpCutoffPowerLaw3PCSpectralModel(SpectralModel):
             expfactor / index_2**2 * (1 - (energy / reference) ** index_2)
         )
 
+        mask = np.abs(index_2 * np.log(energy / reference)) < 1e-2
+        ln_ = np.log(energy[mask] / reference)
+        power = -expfactor * (
+            ln_ / 2.0 + index_2 / 6.0 * ln_**2.0 + index_2**2.0 / 24.0 * ln_**3
+        )
+        cutoff[mask] = (energy[mask] / reference) ** power
         return pwl * cutoff
 
     @property
