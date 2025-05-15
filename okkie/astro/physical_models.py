@@ -472,12 +472,7 @@ class SynchroCurvature(BaseElectron):
         Ec = 3 / 2.0 * (const.hbar * const.c).cgs.value * self._gam**3 * Q2
         EgEc = outspecene.to("erg").value / np.vstack(Ec)
 
-        dNdE = (
-            CS1
-            * EgEc
-            * ((1 + zz) * Ftilde(EgEc) - (1 - zz) * Ktilde(EgEc))
-            / outspecene.to("erg").value
-        )
+        dNdE = CS1 * EgEc * ((1 + zz) * Ftilde(EgEc) - (1 - zz) * Ktilde(EgEc))
 
         spec = (
             trapz_loglog(np.vstack(self._nelec) * dNdE, self._gam, axis=0) / u.s / u.erg
