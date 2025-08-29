@@ -26,6 +26,7 @@ dependencies:
   - naima
   - pandas
   - healpy
+  - ultranest
   # dev dependencies
   - ruff
   - tox
