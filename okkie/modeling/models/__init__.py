@@ -30,7 +30,6 @@ from .phase import (
     TemplatePhaseModel,
 )
 from .source import SourceModel
-from .spectral import SuperExpCutoffPowerLaw4FGLDR3SpectralModelCor
 from .utils import sum_models, validate_ene
 
 __all__ = [
@@ -58,7 +57,6 @@ __all__ = [
     "sum_models",
     "validate_ene",
     "Sigmoid",
-    "SuperExpCutoffPowerLaw4FGLDR3SpectralModelCor",
     "GaussianNormPhaseModel",
     "AsymmetricLorentzianNormPhaseModel",
     "LorentzianNormPhaseModel",

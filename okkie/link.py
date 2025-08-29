@@ -1,8 +1,7 @@
-from gammapy.modeling.models import MODEL_REGISTRY, SPECTRAL_MODEL_REGISTRY
+from gammapy.modeling.models import MODEL_REGISTRY
 
 from okkie.modeling.models import (
     SourceModel,
-    SuperExpCutoffPowerLaw4FGLDR3SpectralModelCor,
 )
 
 PACKAGE = ["gammapy"]
@@ -24,12 +23,3 @@ def link(package_name):
             MODEL_REGISTRY.get_cls("SourceModel")
         except KeyError:
             MODEL_REGISTRY.append(SourceModel)
-
-        try:
-            SPECTRAL_MODEL_REGISTRY.get_cls(
-                "SuperExpCutoffPowerLaw4FGLDR3SpectralModelCor"
-            )
-        except KeyError:
-            SPECTRAL_MODEL_REGISTRY.append(
-                SuperExpCutoffPowerLaw4FGLDR3SpectralModelCor
-            )
