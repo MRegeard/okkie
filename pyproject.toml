@@ -33,7 +33,7 @@ keywords = [
 ]
 dependencies = [
     "numpy>=1.23.2",
-    "gammapy>=1.2",
+    "gammapy>=2.0",
     "astropy>=5.0",
     "packaging>=22.0.0",
     "PyYAML>=6.0.0",
