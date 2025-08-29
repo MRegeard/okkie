@@ -737,11 +737,14 @@ class GaussianNormPhaseModel(PhaseModel):
     @staticmethod
     def evaluate(phase, mean, sigma, period, wrapping_truncation):
         mean = mean % period
-        mean = mean.reshape((1,))
+        mean = mean.reshape((1,))  # Trick to pass in float or int
         phase = phase % period
-        shifts = np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
-        delta = phase[:, np.newaxis] - mean + shifts[np.newaxis, :]
-        num = np.exp(-0.5 * (delta / sigma) ** 2).sum(axis=1)
+        delta_phase = phase - mean
+        periodic_shifts = (
+            np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
+        )
+        delta_phase_wrapped = delta_phase[:, np.newaxis] + periodic_shifts
+        num = np.exp(-0.5 * (delta_phase_wrapped / sigma) ** 2).sum(axis=1)
         den = integrate_periodic_gaussian(
             edge_min=0.0,
             edge_max=period,
@@ -788,12 +791,15 @@ class AsymmetricGaussianNormPhaseModel(PhaseModel):
     @staticmethod
     def evaluate(phase, mean, sigma_1, sigma_2, period, wrapping_truncation):
         mean = mean % period
-        mean = mean.reshape((1,))
+        mean = mean.reshape((1,))  # Trick to pass in float or int
         phase = phase % period
-        shifts = np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
-        delta = phase[:, np.newaxis] - mean + shifts[np.newaxis, :]
-        sig = np.where(delta < 0, sigma_1, sigma_2)
-        num = np.exp(-0.5 * (delta / sig) ** 2).sum(axis=1)
+        delta_phase = phase - mean
+        periodic_shifts = (
+            np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
+        )
+        delta_phase_wrapped = delta_phase[:, np.newaxis] + periodic_shifts
+        sig = np.where(delta_phase_wrapped < 0, sigma_1, sigma_2)
+        num = np.exp(-0.5 * (delta_phase_wrapped / sig) ** 2).sum(axis=1)
         den = integrate_periodic_asymm_gaussian(
             edge_min=0.0,
             edge_max=period,
@@ -842,11 +848,14 @@ class LorentzianNormPhaseModel(PhaseModel):
     @staticmethod
     def evaluate(phase, mean, sigma, period, wrapping_truncation):
         mean = mean % period
-        mean = mean.reshape((1,))
+        mean = mean.reshape((1,))  # Trick to pass in float or int
         phase = phase % period
-        shifts = np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
-        delta = phase[:, np.newaxis] - mean + shifts[np.newaxis, :]
-        num = (1.0 / (1.0 + (delta / sigma) ** 2)).sum(axis=1)
+        delta_phase = phase - mean
+        periodic_shifts = (
+            np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
+        )
+        delta_phase_wrapped = delta_phase[:, np.newaxis] + periodic_shifts
+        num = (1.0 / (1.0 + (delta_phase_wrapped / sigma) ** 2)).sum(axis=1)
         den = integrate_periodic_lorentzian(
             edge_min=0.0,
             edge_max=period,
@@ -893,12 +902,15 @@ class AsymmetricLorentzianNormPhaseModel(PhaseModel):
     @staticmethod
     def evaluate(phase, mean, sigma_1, sigma_2, period, wrapping_truncation):
         mean = mean % period
-        mean = mean.reshape((1,))
+        mean = mean.reshape((1,))  # Trick to pass in float or int
         phase = phase % period
-        shifts = np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
-        delta = phase[:, np.newaxis] - mean + shifts[np.newaxis, :]
-        sig = np.where(delta < 0, sigma_1, sigma_2)
-        num = (1.0 / (1.0 + (delta / sig) ** 2)).sum(axis=1)
+        delta_phase = phase - mean
+        periodic_shifts = (
+            np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
+        )
+        delta_phase_wrapped = delta_phase[:, np.newaxis] + periodic_shifts
+        sig = np.where(delta_phase_wrapped < 0, sigma_1, sigma_2)
+        num = (1.0 / (1.0 + (delta_phase_wrapped / sig) ** 2)).sum(axis=1)
         den = integrate_periodic_asymm_lorentzian(
             edge_min=0.0,
             edge_max=period,
