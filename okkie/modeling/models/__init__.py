@@ -14,12 +14,16 @@ from .integral import (
 )
 from .luminosity import LuminosityModel
 from .phase import (
+    AsymmetricGaussianNormPhaseModel,
     AsymmetricGaussianPhaseModel,
+    AsymmetricLorentzianNormPhaseModel,
     AsymmetricLorentzianPhaseModel,
     CompoundPhaseModel,
     ConstantPhaseModel,
     GatePhaseModel,
+    GaussianNormPhaseModel,
     GaussianPhaseModel,
+    LorentzianNormPhaseModel,
     LorentzianPhaseModel,
     PhaseModel,
     ScalePhaseModel,
@@ -55,6 +59,10 @@ __all__ = [
     "validate_ene",
     "Sigmoid",
     "SuperExpCutoffPowerLaw4FGLDR3SpectralModelCor",
+    "GaussianNormPhaseModel",
+    "AsymmetricLorentzianNormPhaseModel",
+    "LorentzianNormPhaseModel",
+    "AsymmetricLorentzianNormPhaseModel",
 ]
 
 

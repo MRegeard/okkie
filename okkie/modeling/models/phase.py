@@ -33,6 +33,10 @@ __all__ = [
     "TemplatePhaseModel",
     "ScalePhaseModel",
     "GatePhaseModel",
+    "GaussianNormPhaseModel",
+    "AsymmetricGaussianNormPhaseModel",
+    "LorentzianNormPhaseModel",
+    "AsymmetricLorentzianNormPhaseModel",
 ]
 
 DEFAULT_WRAPPING_TRUNCTAION = 5
@@ -721,3 +725,213 @@ class GatePhaseModel(PhaseModel):
 
     def integral(self, phase_min, phase_max, **kwargs):
         return self.amplitude.value * (self.phi_2.value - self.phi_1.value)
+
+
+class GaussianNormPhaseModel(PhaseModel):
+    """Gaussian wrapped phase model that is always a PDF (∫_0^P = 1)."""
+
+    tag = ["GaussianNormPhaseModel", "gaussnorm"]
+    mean = Parameter("mean", 0.5)
+    sigma = Parameter("sigma", 0.1)
+
+    @staticmethod
+    def evaluate(phase, mean, sigma, period, wrapping_truncation):
+        mean = mean % period
+        mean = mean.reshape((1,))
+        phase = phase % period
+        shifts = np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
+        delta = phase[:, np.newaxis] - mean + shifts[np.newaxis, :]
+        num = np.exp(-0.5 * (delta / sigma) ** 2).sum(axis=1)
+        den = integrate_periodic_gaussian(
+            edge_min=0.0,
+            edge_max=period,
+            amplitude=1.0,
+            mean=mean,
+            sigma=sigma,
+            period=period,
+            truncation=wrapping_truncation,
+        )
+        den = np.clip(den, 1e-300, np.inf)
+        return num / den
+
+    def integral(self, phase_min, phase_max, **kwargs):
+        full = integrate_periodic_gaussian(
+            edge_min=0.0,
+            edge_max=self.period,
+            amplitude=1.0,
+            mean=self.mean.value,
+            sigma=self.sigma.value,
+            period=self.period,
+            truncation=self.wrapping_truncation,
+        )
+        part = integrate_periodic_gaussian(
+            edge_min=phase_min,
+            edge_max=phase_max,
+            amplitude=1.0,
+            mean=self.mean.value,
+            sigma=self.sigma.value,
+            period=self.period,
+            truncation=self.wrapping_truncation,
+        )
+        full = max(float(full), 1e-300)
+        return float(part) / full
+
+
+class AsymmetricGaussianNormPhaseModel(PhaseModel):
+    """Asymmetric Gaussian wrapped phase model that is always a PDF (∫_0^P = 1)."""
+
+    tag = ["AsymmetricGaussianNormPhaseModel", "asymgaussnorm"]
+    mean = Parameter("mean", 0.5)
+    sigma_1 = Parameter("sigma_1", 0.1)
+    sigma_2 = Parameter("sigma_2", 0.1)
+
+    @staticmethod
+    def evaluate(phase, mean, sigma_1, sigma_2, period, wrapping_truncation):
+        mean = mean % period
+        mean = mean.reshape((1,))
+        phase = phase % period
+        shifts = np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
+        delta = phase[:, np.newaxis] - mean + shifts[np.newaxis, :]
+        sig = np.where(delta < 0, sigma_1, sigma_2)
+        num = np.exp(-0.5 * (delta / sig) ** 2).sum(axis=1)
+        den = integrate_periodic_asymm_gaussian(
+            edge_min=0.0,
+            edge_max=period,
+            amplitude=1.0,
+            mean=mean,
+            sigma_1=sigma_1,
+            sigma_2=sigma_2,
+            period=period,
+            truncation=wrapping_truncation,
+        )
+        den = np.clip(den, 1e-300, np.inf)
+        return num / den
+
+    def integral(self, phase_min, phase_max, **kwargs):
+        full = integrate_periodic_asymm_gaussian(
+            edge_min=0.0,
+            edge_max=self.period,
+            amplitude=1.0,
+            mean=self.mean.value,
+            sigma_1=self.sigma_1.value,
+            sigma_2=self.sigma_2.value,
+            period=self.period,
+            truncation=self.wrapping_truncation,
+        )
+        part = integrate_periodic_asymm_gaussian(
+            edge_min=phase_min,
+            edge_max=phase_max,
+            amplitude=1.0,
+            mean=self.mean.value,
+            sigma_1=self.sigma_1.value,
+            sigma_2=self.sigma_2.value,
+            period=self.period,
+            truncation=self.wrapping_truncation,
+        )
+        full = max(float(full), 1e-300)
+        return float(part) / full
+
+
+class LorentzianNormPhaseModel(PhaseModel):
+    """Lorentzian wrapped phase model that is always a PDF (∫_0^P = 1)."""
+
+    tag = ["LorentzianNormPhaseModel", "lornorm"]
+    mean = Parameter("mean", 0.0)
+    sigma = Parameter("sigma", 0.1)
+
+    @staticmethod
+    def evaluate(phase, mean, sigma, period, wrapping_truncation):
+        mean = mean % period
+        mean = mean.reshape((1,))
+        phase = phase % period
+        shifts = np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
+        delta = phase[:, np.newaxis] - mean + shifts[np.newaxis, :]
+        num = (1.0 / (1.0 + (delta / sigma) ** 2)).sum(axis=1)
+        den = integrate_periodic_lorentzian(
+            edge_min=0.0,
+            edge_max=period,
+            amplitude=1.0,
+            mean=mean,
+            sigma=sigma,
+            period=period,
+            truncation=wrapping_truncation,
+        )
+        den = np.clip(den, 1e-300, np.inf)
+        return num / den
+
+    def integral(self, phase_min, phase_max, **kwargs):
+        full = integrate_periodic_lorentzian(
+            edge_min=0.0,
+            edge_max=self.period,
+            amplitude=1.0,
+            mean=self.mean.value,
+            sigma=self.sigma.value,
+            period=self.period,
+            truncation=self.wrapping_truncation,
+        )
+        part = integrate_periodic_lorentzian(
+            edge_min=phase_min,
+            edge_max=phase_max,
+            amplitude=1.0,
+            mean=self.mean.value,
+            sigma=self.sigma.value,
+            period=self.period,
+            truncation=self.wrapping_truncation,
+        )
+        full = max(float(full), 1e-300)
+        return float(part) / full
+
+
+class AsymmetricLorentzianNormPhaseModel(PhaseModel):
+    """Asymmetric Lorentzian wrapped phase model that is always a PDF (∫_0^P = 1)."""
+
+    tag = ["AsymmetricLorentzianNormPhaseModel", "asymlornorm"]
+    mean = Parameter("mean", 0.0)
+    sigma_1 = Parameter("sigma_1", 0.1)
+    sigma_2 = Parameter("sigma_2", 0.1)
+
+    @staticmethod
+    def evaluate(phase, mean, sigma_1, sigma_2, period, wrapping_truncation):
+        mean = mean % period
+        mean = mean.reshape((1,))
+        phase = phase % period
+        shifts = np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
+        delta = phase[:, np.newaxis] - mean + shifts[np.newaxis, :]
+        sig = np.where(delta < 0, sigma_1, sigma_2)
+        num = (1.0 / (1.0 + (delta / sig) ** 2)).sum(axis=1)
+        den = integrate_periodic_asymm_lorentzian(
+            edge_min=0.0,
+            edge_max=period,
+            amplitude=1.0,
+            mean=mean,
+            sigma_1=sigma_1,
+            sigma_2=sigma_2,
+            period=period,
+            truncation=wrapping_truncation,
+        )
+        den = np.clip(den, 1e-300, np.inf)
+        return num / den
+
+    def integral(self, phase_min, phase_max, **kwargs):
+        full = integrate_periodic_asymm_lorentzian(
+            edge_min=0.0,
+            edge_max=self.period,
+            amplitude=1.0,
+            mean=self.mean.value,
+            sigma_1=self.sigma_1.value,
+            sigma_2=self.sigma_2.value,
+            period=self.period,
+            truncation=self.wrapping_truncation,
+        )
+        part = integrate_periodic_asymm_lorentzian(
+            edge_min=phase_min,
+            edge_max=phase_max,
+            amplitude=1.0,
+            mean=self.mean.value,
+            sigma_1=self.sigma_1.value,
+            sigma_2=self.sigma_2.value,
+            period=self.period,
+            truncation=self.wrapping_truncation,
+        )
+        full = max(float(full), 1e-300)
+        return float(part) / full
