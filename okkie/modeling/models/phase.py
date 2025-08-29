@@ -5,7 +5,7 @@ import astropy.units as u
 import matplotlib.pyplot as plt
 import numpy as np
 from gammapy.maps import MapAxis
-from gammapy.modeling import Parameter
+from gammapy.modeling import Parameter, Parameters
 from gammapy.modeling.models import ModelBase
 from gammapy.utils.interpolation import ScaledRegularGridInterpolator
 
@@ -663,24 +663,51 @@ class ScalePhaseModel(PhaseModel):
     ----------
     model : `PhaseModel`
         Phase model to wrap.
-    norm : float
+    scale : float
         Multiplicative norm factor for the model value.
         Default is 1.
     """
 
     tag = ["ScalePhaseModel", "scale"]
-    norm = Parameter("norm", 1)
+    scale = Parameter("scale", 1)
 
-    def __init__(self, model, norm=norm.quantity):
+    def __init__(self, model, scale=scale.quantity):
         self.model = model
         self._covariance = None
-        super().__init__(norm=norm)
+        super().__init__()
 
-    def evaluate(self, phase, norm, period, wrapping_truncation):
-        return norm * self.model(phase)
+    @property
+    def parameters(self):
+        return Parameters([self.scale] + list(self.model.parameters))
+
+    def evaluate(self, phase, scale, period, wrapping_truncation, **kwargs):
+        return scale * self.model(phase)
 
     def integral(self, phase_min, phase_max, **kwargs):
-        return self.norm.value * self.model.integral(phase_min, phase_max, **kwargs)
+        return self.scale.value * self.model.integral(phase_min, phase_max, **kwargs)
+
+    def __getattr__(self, name):
+        """
+        If an attribute isn't found on this wrapper, try to fetch a Parameter
+        (or attribute) from the wrapped model. This allows `scale.mean.value = ...`.
+        """
+        # Forward to parameters by name
+        params = getattr(self.model, "parameters", None)
+        if params is not None and name in params.names:
+            return params[name]
+        # Or forward any other attribute transparently
+        if hasattr(self.model, name):
+            return getattr(self.model, name)
+        raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}")
+
+    def __dir__(self):
+        """Improve tab-completion: include wrapped parameter names."""
+        base = set(super().__dir__())
+        try:
+            wrapped = set(self.model.parameters.names)
+        except Exception:
+            wrapped = set()
+        return sorted(base | wrapped)
 
 
 class GatePhaseModel(PhaseModel):
