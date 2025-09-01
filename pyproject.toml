@@ -32,11 +32,12 @@ keywords = [
     "models",
 ]
 dependencies = [
-    "numpy>=1.23.2",
+    "numpy>=2.0",
     "gammapy>=2.0",
-    "astropy>=5.0",
+    "astropy>=6.0",
     "packaging>=22.0.0",
     "PyYAML>=6.0.0",
+    "naima>=0.15.0",
 ]
 
 [project.optional-dependencies]
