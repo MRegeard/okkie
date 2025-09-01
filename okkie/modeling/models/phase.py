@@ -57,7 +57,7 @@ class PhaseModel(ModelBase):
     wrapping_truncation = DEFAULT_WRAPPING_TRUNCTAION
 
     def __call__(self, phase: u.Quantity) -> u.Quantity:
-        kwargs = {par.name: par.quantity for par in self.parameters}
+        kwargs = {par.name: par.quantity.value for par in self.parameters}
         kwargs["period"] = self.period
         kwargs["wrapping_truncation"] = self.wrapping_truncation
         return self.evaluate(phase, **kwargs)
@@ -297,15 +297,15 @@ class ConstantPhaseModel(PhaseModel):
 
     @staticmethod
     def evaluate(
-        phase: u.Quantity,
-        const: u.Quantity,
+        phase: float,
+        const: float,
         period: float,
         wrapping_truncation: int,
-    ) -> u.Quantity:
+    ) -> float:
         """Evaluate the model (static function)."""
         return np.ones(np.atleast_1d(phase).shape) * const
 
-    def integral(self, phase_min: u.Quantity, phase_max: u.Quantity) -> u.Quantity:
+    def integral(self, phase_min: float, phase_max: float) -> float:
         phase_min %= self.period
         if phase_max != self.period:
             phase_max %= self.period
@@ -357,7 +357,7 @@ class CompoundPhaseModel(PhaseModel):
         val2 = self.model2(phase)
         return self.operator(val1, val2)
 
-    def evaluate(self, phase: u.Quantity, *args: u.Quantity) -> u.Quantity:
+    def evaluate(self, phase: float, *args: float) -> float:
         args1 = args[: len(self.model1.parameters)]
         args2 = args[len(self.model1.parameters) :]
         val1 = self.model1.evaluate(phase, *args1)
@@ -375,13 +375,13 @@ class LorentzianPhaseModel(PhaseModel):
 
     @staticmethod
     def evaluate(
-        phase: u.Quantity,
-        amplitude: u.Quantity,
-        mean: u.Quantity,
-        sigma: u.Quantity,
+        phase: float,
+        amplitude: float,
+        mean: float,
+        sigma: float,
         period: float,
         wrapping_truncation: int,
-    ) -> u.Quantity:
+    ) -> float:
         mean = mean % period
         mean = mean.reshape((1,))  # Trick to pass in float or int
         phase = phase % period
@@ -439,14 +439,14 @@ class AsymmetricLorentzianPhaseModel(PhaseModel):
 
     @staticmethod
     def evaluate(
-        phase: u.Quantity,
-        amplitude: u.Quantity,
-        mean: u.Quantity,
-        sigma_1: u.Quantity,
-        sigma_2: u.Quantity,
+        phase: float,
+        amplitude: float,
+        mean: float,
+        sigma_1: float,
+        sigma_2: float,
         period: float,
         wrapping_truncation: int,
-    ) -> u.Quantity:
+    ) -> float:
         mean = mean % period
         mean = mean.reshape((1,))  # Trick to pass in float or int
         phase = phase % period
@@ -518,13 +518,13 @@ class GaussianPhaseModel(PhaseModel):
 
     @staticmethod
     def evaluate(
-        phase: u.Quantity,
-        amplitude: u.Quantity,
-        mean: u.Quantity,
-        sigma: u.Quantity,
+        phase: float,
+        amplitude: float,
+        mean: float,
+        sigma: float,
         period: float,
         wrapping_truncation: int,
-    ) -> u.Quantity:
+    ) -> float:
         mean = mean % period
         mean = mean.reshape((1,))  # Trick to pass in float or int
         phase = phase % period
@@ -582,7 +582,15 @@ class AsymmetricGaussianPhaseModel(PhaseModel):
     sigma_2 = Parameter("sigma_2", 0.1)
 
     @staticmethod
-    def evaluate(phase, amplitude, mean, sigma_1, sigma_2, period, wrapping_truncation):
+    def evaluate(
+        phase: float,
+        amplitude: float,
+        mean: float,
+        sigma_1: float,
+        sigma_2: float,
+        period: float,
+        wrapping_truncation: int,
+    ) -> float:
         mean = mean % period
         mean = mean.reshape((1,))  # Trick to pass in float or int
         phase = phase % period
@@ -729,7 +737,7 @@ class ScalePhaseModel(PhaseModel):
     tag = ["ScalePhaseModel", "scale"]
     scale = Parameter("scale", 1)
 
-    def __init__(self, model: PhaseModel, scale: u.Quantity = scale.quantity) -> None:
+    def __init__(self, model: PhaseModel, scale: float = scale.quantity.value) -> None:
         self.model = model
         self._covariance = None
         super().__init__(scale=scale)
@@ -740,20 +748,20 @@ class ScalePhaseModel(PhaseModel):
 
     def evaluate(
         self,
-        phase: u.Quantity,
-        scale: u.Quantity,
+        phase: float,
+        scale: float,
         period: float,
         wrapping_truncation: int,
         **kwargs: Any,
-    ) -> u.Quantity:
+    ) -> float:
         return scale * self.model(phase)
 
     def integral(
         self,
-        phase_min: u.Quantity,
-        phase_max: u.Quantity,
+        phase_min: float,
+        phase_max: float,
         **kwargs: Any,
-    ) -> u.Quantity:
+    ) -> float:
         return self.scale.value * self.model.integral(phase_min, phase_max, **kwargs)
 
     def __getattr__(self, name: str) -> Any:
@@ -812,12 +820,12 @@ class GaussianNormPhaseModel(PhaseModel):
 
     @staticmethod
     def evaluate(
-        phase: u.Quantity,
-        mean: u.Quantity,
-        sigma: u.Quantity,
+        phase: float,
+        mean: float,
+        sigma: float,
         period: float,
         wrapping_truncation: int,
-    ) -> u.Quantity:
+    ) -> float:
         mean = mean % period
         mean = mean.reshape((1,))  # Trick to pass in float or int
         phase = phase % period
@@ -831,8 +839,8 @@ class GaussianNormPhaseModel(PhaseModel):
             edge_min=0.0,
             edge_max=period,
             amplitude=1.0,
-            mean=mean.value,
-            sigma=sigma.value,
+            mean=mean,
+            sigma=sigma,
             period=period,
             truncation=wrapping_truncation,
         )
@@ -872,13 +880,13 @@ class AsymmetricGaussianNormPhaseModel(PhaseModel):
 
     @staticmethod
     def evaluate(
-        phase: u.Quantity,
-        mean: u.Quantity,
-        sigma_1: u.Quantity,
-        sigma_2: u.Quantity,
+        phase: float,
+        mean: float,
+        sigma_1: float,
+        sigma_2: float,
         period: float,
         wrapping_truncation: int,
-    ) -> u.Quantity:
+    ) -> float:
         mean = mean % period
         mean = mean.reshape((1,))  # Trick to pass in float or int
         phase = phase % period
@@ -893,9 +901,9 @@ class AsymmetricGaussianNormPhaseModel(PhaseModel):
             edge_min=0.0,
             edge_max=period,
             amplitude=1.0,
-            mean=mean.value,
-            sigma_1=sigma_1.value,
-            sigma_2=sigma_2.value,
+            mean=mean,
+            sigma_1=sigma_1,
+            sigma_2=sigma_2,
             period=period,
             truncation=wrapping_truncation,
         )
@@ -936,12 +944,12 @@ class LorentzianNormPhaseModel(PhaseModel):
 
     @staticmethod
     def evaluate(
-        phase: u.Quantity,
-        mean: u.Quantity,
-        sigma: u.Quantity,
+        phase: float,
+        mean: float,
+        sigma: float,
         period: float,
         wrapping_truncation: int,
-    ) -> u.Quantity:
+    ) -> float:
         mean = mean % period
         mean = mean.reshape((1,))  # Trick to pass in float or int
         phase = phase % period
@@ -955,8 +963,8 @@ class LorentzianNormPhaseModel(PhaseModel):
             edge_min=0.0,
             edge_max=period,
             amplitude=1.0,
-            mean=mean.value,
-            sigma=sigma.value,
+            mean=mean,
+            sigma=sigma,
             period=period,
             truncation=wrapping_truncation,
         )
@@ -996,13 +1004,13 @@ class AsymmetricLorentzianNormPhaseModel(PhaseModel):
 
     @staticmethod
     def evaluate(
-        phase: u.Quantity,
-        mean: u.Quantity,
-        sigma_1: u.Quantity,
-        sigma_2: u.Quantity,
+        phase: float,
+        mean: float,
+        sigma_1: float,
+        sigma_2: float,
         period: float,
         wrapping_truncation: int,
-    ) -> u.Quantity:
+    ) -> float:
         mean = mean % period
         mean = mean.reshape((1,))  # Trick to pass in float or int
         phase = phase % period
@@ -1017,9 +1025,9 @@ class AsymmetricLorentzianNormPhaseModel(PhaseModel):
             edge_min=0.0,
             edge_max=period,
             amplitude=1.0,
-            mean=mean.value,
-            sigma_1=sigma_1.value,
-            sigma_2=sigma_2.value,
+            mean=mean,
+            sigma_1=sigma_1,
+            sigma_2=sigma_2,
             period=period,
             truncation=wrapping_truncation,
         )
