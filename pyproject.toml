@@ -9,13 +9,12 @@ authors = [
     { name = "REGEARD Maxime"}
 ]
 license = { text = "BSD-3-Clause" }
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: BSD License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -32,18 +31,19 @@ keywords = [
     "models",
 ]
 dependencies = [
-    "numpy>=1.23.2",
+    "numpy>=2.0",
     "gammapy>=2.0",
-    "astropy>=5.0",
+    "astropy>=6.0",
     "packaging>=22.0.0",
     "PyYAML>=6.0.0",
+    "naima>=0.10.3",
+    "scipy>=1.13",
 ]
 
 [project.optional-dependencies]
 # Recommended run-time dependencies to enable a lot of functionality within Astropy.
 recommended = [
     "pint-pulsar>=1.0",
-    "scipy>=1.9.2",
     "matplotlib>=3.6.0",
 ]
 
