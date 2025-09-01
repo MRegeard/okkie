@@ -1,22 +1,18 @@
-import runpy
-from pathlib import Path
-
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-_integral = runpy.run_path(
-    Path(__file__).resolve().parents[1] / "okkie/modeling/models/integral.py"
+from okkie.modeling.models import (
+    integrate_asymm_gaussian,
+    integrate_asymm_lorentzian,
+    integrate_gaussian,
+    integrate_lorentzian,
+    integrate_periodic_asymm_gaussian,
+    integrate_periodic_asymm_lorentzian,
+    integrate_periodic_gaussian,
+    integrate_periodic_lorentzian,
+    integrate_trapezoid,
 )
-integrate_asymm_gaussian = _integral["integrate_asymm_gaussian"]
-integrate_asymm_lorentzian = _integral["integrate_asymm_lorentzian"]
-integrate_gaussian = _integral["integrate_gaussian"]
-integrate_lorentzian = _integral["integrate_lorentzian"]
-integrate_periodic_asymm_gaussian = _integral["integrate_periodic_asymm_gaussian"]
-integrate_periodic_asymm_lorentzian = _integral["integrate_periodic_asymm_lorentzian"]
-integrate_periodic_gaussian = _integral["integrate_periodic_gaussian"]
-integrate_periodic_lorentzian = _integral["integrate_periodic_lorentzian"]
-integrate_trapezoid = _integral["integrate_trapezoid"]
 
 
 def _numeric_trapz(func, a, b, n=10000):
@@ -30,7 +26,9 @@ def test_integrate_trapezoid_matches_gaussian():
     pars = dict(amplitude=10.0, mean=0.3, sigma=0.1)
 
     def gaussian(x):
-        return pars["amplitude"] * np.exp(-0.5 * ((x - pars["mean"]) / pars["sigma"]) ** 2)
+        return pars["amplitude"] * np.exp(
+            -0.5 * ((x - pars["mean"]) / pars["sigma"]) ** 2
+        )
 
     numeric = integrate_trapezoid(gaussian, a, b, n=20000)
     analytic = integrate_gaussian(a, b, **pars)
@@ -49,8 +47,7 @@ def test_integrate_trapezoid_matches_gaussian():
         (
             integrate_lorentzian,
             dict(amplitude=5.0, mean=0.4, sigma=0.1),
-            lambda x, p: p["amplitude"]
-            / (1.0 + ((x - p["mean"]) / p["sigma"]) ** 2),
+            lambda x, p: p["amplitude"] / (1.0 + ((x - p["mean"]) / p["sigma"]) ** 2),
         ),
     ],
 )
@@ -122,8 +119,7 @@ def test_asymmetric_shapes(func, pars, model):
             ),
             lambda x, p: p["amplitude"]
             * sum(
-                1.0
-                / (1.0 + ((x - (p["mean"] - k * p["period"])) / p["sigma"]) ** 2)
+                1.0 / (1.0 + ((x - (p["mean"] - k * p["period"])) / p["sigma"]) ** 2)
                 for k in range(-p["truncation"], p["truncation"] + 1)
             ),
         ),
@@ -154,20 +150,10 @@ def test_periodic_shapes(func, pars, model):
                 np.where(
                     x < (p["mean"] - k * p["period"]),
                     np.exp(
-                        -0.5
-                        * (
-                            (x - (p["mean"] - k * p["period"]))
-                            / p["sigma_1"]
-                        )
-                        ** 2
+                        -0.5 * ((x - (p["mean"] - k * p["period"])) / p["sigma_1"]) ** 2
                     ),
                     np.exp(
-                        -0.5
-                        * (
-                            (x - (p["mean"] - k * p["period"]))
-                            / p["sigma_2"]
-                        )
-                        ** 2
+                        -0.5 * ((x - (p["mean"] - k * p["period"])) / p["sigma_2"]) ** 2
                     ),
                 )
                 for k in range(-p["truncation"], p["truncation"] + 1)
@@ -188,23 +174,9 @@ def test_periodic_shapes(func, pars, model):
                 np.where(
                     x < (p["mean"] - k * p["period"]),
                     1.0
-                    / (
-                        1.0
-                        + (
-                            (x - (p["mean"] - k * p["period"]))
-                            / p["sigma_1"]
-                        )
-                        ** 2
-                    ),
+                    / (1.0 + ((x - (p["mean"] - k * p["period"])) / p["sigma_1"]) ** 2),
                     1.0
-                    / (
-                        1.0
-                        + (
-                            (x - (p["mean"] - k * p["period"]))
-                            / p["sigma_2"]
-                        )
-                        ** 2
-                    ),
+                    / (1.0 + ((x - (p["mean"] - k * p["period"])) / p["sigma_2"]) ** 2),
                 )
                 for k in range(-p["truncation"], p["truncation"] + 1)
             ),
