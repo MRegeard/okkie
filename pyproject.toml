@@ -37,13 +37,13 @@ dependencies = [
     "packaging>=22.0.0",
     "PyYAML>=6.0.0",
     "naima>=0.10.3",
+    "scipy>=1.13",
 ]
 
 [project.optional-dependencies]
 # Recommended run-time dependencies to enable a lot of functionality within Astropy.
 recommended = [
     "pint-pulsar>=1.0",
-    "scipy>=1.9.2",
     "matplotlib>=3.6.0",
 ]
 
