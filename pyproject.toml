@@ -37,7 +37,7 @@ dependencies = [
     "astropy>=6.0",
     "packaging>=22.0.0",
     "PyYAML>=6.0.0",
-    "naima>=0.15.0",
+    "naima>=0.10.3",
 ]
 
 [project.optional-dependencies]
