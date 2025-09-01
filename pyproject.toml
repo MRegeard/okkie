@@ -36,7 +36,7 @@ dependencies = [
     "astropy>=6.0",
     "packaging>=22.0.0",
     "PyYAML>=6.0.0",
-    "naima>=0.10.3",
+    "naima>=0.10",
     "scipy>=1.13",
 ]
 
