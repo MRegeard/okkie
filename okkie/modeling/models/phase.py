@@ -357,9 +357,7 @@ class LorentzianPhaseModel(PhaseModel):
 
         lorentzian = 1 / (1 + (delta_phase_wrapped / sigma) ** 2)
 
-        normalization = 0.0
-        for shift in periodic_shifts:
-            normalization += 1 / (1 + (shift / sigma) ** 2)
+        normalization = np.sum(1 / (1 + (periodic_shifts / sigma) ** 2))
 
         values = amplitude * lorentzian.sum(axis=1) / normalization
 
@@ -418,11 +416,9 @@ class AsymmetricLorentzianPhaseModel(PhaseModel):
         l2 = 1 / (1 + (delta_phase_wrapped / sigma_2) ** 2)
         lorentzian = np.where(delta_phase_wrapped < 0, l1, l2)
 
-        normalization = 0.0
-        for shift in periodic_shifts:
-            norm_l1 = 1 / (1 + (shift / sigma_1) ** 2)
-            norm_l2 = 1 / (1 + (shift / sigma_2) ** 2)
-            normalization += (norm_l1 + norm_l2) / 2
+        norm_l1 = 1 / (1 + (periodic_shifts / sigma_1) ** 2)
+        norm_l2 = 1 / (1 + (periodic_shifts / sigma_2) ** 2)
+        normalization = np.sum((norm_l1 + norm_l2) / 2)
 
         values = amplitude * lorentzian.sum(axis=1) / normalization
 
@@ -489,8 +485,8 @@ class GaussianPhaseModel(PhaseModel):
 
         gaussians = np.exp(-(delta_phase_wrapped**2) / (2 * sigma**2))
 
-        normalization = sum(
-            np.exp(-((shift) ** 2) / (2 * sigma**2)) for shift in periodic_shifts
+        normalization = np.sum(
+            np.exp(-(periodic_shifts**2) / (2 * sigma**2))
         )
 
         return amplitude * gaussians.sum(axis=1) / normalization
@@ -551,14 +547,11 @@ class AsymmetricGaussianPhaseModel(PhaseModel):
         g2 = np.exp(-(delta_phase_wrapped**2) / (2 * sigma_2**2))
         gaussians = np.where(delta_phase_wrapped < 0, g1, g2)
 
-        normalization = sum(
-            0.5
-            * (
-                np.exp(-((shift) ** 2) / (2 * sigma_1**2))
-                + np.exp(-((shift) ** 2) / (2 * sigma_2**2))
-            )
-            for shift in periodic_shifts
+        norm = 0.5 * (
+            np.exp(-(periodic_shifts**2) / (2 * sigma_1**2))
+            + np.exp(-(periodic_shifts**2) / (2 * sigma_2**2))
         )
+        normalization = np.sum(norm)
 
         return amplitude * gaussians.sum(axis=1) / normalization
 
