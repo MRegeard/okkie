@@ -732,7 +732,7 @@ class ScalePhaseModel(PhaseModel):
     def __init__(self, model: PhaseModel, scale: u.Quantity = scale.quantity) -> None:
         self.model = model
         self._covariance = None
-        super().__init__()
+        super().__init__(scale=scale)
 
     @property
     def parameters(self) -> Parameters:
