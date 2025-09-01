@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from functools import lru_cache
-
 import numpy as np
 from scipy.special import erf
+
+from .decorators import VectorizeIntegral, _shifts
 
 __all__ = [
     "integrate_asymm_gaussian",
@@ -18,223 +18,162 @@ __all__ = [
 ]
 
 
-@lru_cache(maxsize=64)
-def _shifts(period: float, truncation: int) -> np.ndarray:
-    """Periodic shift grid: k*period for k in [-K..K]."""
-    K = int(truncation)
-    return np.arange(-K, K + 1, dtype=float) * float(period)
-
-
 _RT2 = np.sqrt(2.0)
 _PI = np.pi
 
 
-def integrate_trapezoid(
-    model, edge_min: float, edge_max: float, n: int = 2048
-) -> float:
-    """Numerical fallback (trapezoid) for arbitrary PhaseModel."""
-    a = float(edge_min)
-    b = float(edge_max)
+def integrate_trapezoid(model, edge_min, edge_max, n: int = 2048) -> float:
+    a = float(np.asarray(edge_min).ravel()[0])
+    b = float(np.asarray(edge_max).ravel()[0])
     if b <= a:
         return 0.0
     x = np.linspace(a, b, n, dtype=float)
     y = np.asarray(model(x), float)
-    # np.trapz is already vectorized C code
     return float(np.trapezoid(y, x))
 
 
-def integrate_gaussian(edge_min, edge_max, *, amplitude, mean, sigma) -> float:
-    a = float(edge_min)
-    b = float(edge_max)
-    if b <= a:
-        return 0.0
-    s = float(sigma)
-    mu = float(mean)
-    A = (a - mu) / (_RT2 * s)
-    B = (b - mu) / (_RT2 * s)
-    return float(amplitude * s * np.sqrt(_PI / 2.0) * (erf(B) - erf(A)))
+@VectorizeIntegral(
+    params_to_broadcast=("amplitude", "mean", "sigma"), clips={"sigma": (1e-300, None)}
+)
+def integrate_gaussian(a, b, *, amplitude, mean, sigma):
+    # amplitude, mean, sigma are 1D arrays (flat) of same length
+    AA = (a - mean) / (_RT2 * sigma)
+    BB = (b - mean) / (_RT2 * sigma)
+    return amplitude * sigma * np.sqrt(_PI / 2.0) * (erf(BB) - erf(AA))
 
 
-def integrate_lorentzian(edge_min, edge_max, *, amplitude, mean, sigma) -> float:
-    a = float(edge_min)
-    b = float(edge_max)
-    if b <= a:
-        return 0.0
-    s = float(sigma)
-    mu = float(mean)
-    A = (a - mu) / s
-    B = (b - mu) / s
-    return float(amplitude * s * (np.arctan(B) - np.arctan(A)))
+@VectorizeIntegral(
+    params_to_broadcast=("amplitude", "mean", "sigma"), clips={"sigma": (1e-300, None)}
+)
+def integrate_lorentzian(a, b, *, amplitude, mean, sigma):
+    AA = (a - mean) / sigma
+    BB = (b - mean) / sigma
+    return amplitude * sigma * (np.arctan(BB) - np.arctan(AA))
 
 
-def integrate_asymm_gaussian(
-    edge_min, edge_max, *, amplitude, mean, sigma_1, sigma_2
-) -> float:
-    """Asymmetric Gaussian (simga_1 on left of mean, sigma_2 on right)."""
-    a = float(edge_min)
-    b = float(edge_max)
-    if b <= a:
-        return 0.0
-    c = float(mean)
-    s1 = float(sigma_1)
-    s2 = float(sigma_2)
-
-    # left part: [a, min(b, c)] with simga_1
-    left_hi = min(b, c)
-    left = 0.0
-    if a < c:
-        A = (a - c) / (_RT2 * s1)
-        H = (left_hi - c) / (_RT2 * s1)
-        left = s1 * np.sqrt(_PI / 2.0) * (erf(H) - erf(A))
-
-    # right part: [max(a, c), b] with simga_2
-    right_lo = max(a, c)
-    right = 0.0
-    if b > c:
-        L = (right_lo - c) / (_RT2 * s2)
-        B = (b - c) / (_RT2 * s2)
-        right = s2 * np.sqrt(_PI / 2.0) * (erf(B) - erf(L))
-
-    return float(amplitude * (left + right))
+@VectorizeIntegral(
+    params_to_broadcast=("amplitude", "mean", "sigma_1", "sigma_2"),
+    clips={"sigma_1": (1e-300, None), "sigma_2": (1e-300, None)},
+)
+def integrate_asymm_gaussian(a, b, *, amplitude, mean, sigma_1, sigma_2):
+    C = mean
+    # left segment [a, min(b, C)] uses sigma_1
+    left_hi = np.minimum(b, C)
+    left_mask = (a < C).astype(float)
+    A1 = (a - C) / (_RT2 * sigma_1)
+    H1 = (left_hi - C) / (_RT2 * sigma_1)
+    left = left_mask * (sigma_1 * np.sqrt(_PI / 2.0) * (erf(H1) - erf(A1)))
+    # right segment [max(a, C), b] uses sigma_2
+    right_lo = np.maximum(a, C)
+    right_mask = (b > C).astype(float)
+    L2 = (right_lo - C) / (_RT2 * sigma_2)
+    B2 = (b - C) / (_RT2 * sigma_2)
+    right = right_mask * (sigma_2 * np.sqrt(_PI / 2.0) * (erf(B2) - erf(L2)))
+    return amplitude * (left + right)
 
 
-def integrate_asymm_lorentzian(
-    edge_min, edge_max, *, amplitude, mean, sigma_1, sigma_2
-) -> float:
-    """Asymmetric Lorentzian (sigma_1 left of mean, sigma_2 right)."""
-    a = float(edge_min)
-    b = float(edge_max)
-    if b <= a:
-        return 0.0
-    c = float(mean)
-    s1 = float(sigma_1)
-    s2 = float(sigma_2)
-
-    # left: [a, min(b, c)] with sigma_1
-    left_hi = min(b, c)
-    left = 0.0
-    if a < c:
-        A = (a - c) / s1
-        H = (left_hi - c) / s1
-        left = s1 * (np.arctan(H) - np.arctan(A))
-
-    # right: [max(a, c), b] with sigma_2
-    right_lo = max(a, c)
-    right = 0.0
-    if b > c:
-        L = (right_lo - c) / s2
-        B = (b - c) / s2
-        right = s2 * (np.arctan(B) - np.arctan(L))
-
-    return float(amplitude * (left + right))
+@VectorizeIntegral(
+    params_to_broadcast=("amplitude", "mean", "sigma_1", "sigma_2"),
+    clips={"sigma_1": (1e-300, None), "sigma_2": (1e-300, None)},
+)
+def integrate_asymm_lorentzian(a, b, *, amplitude, mean, sigma_1, sigma_2):
+    C = mean
+    left_hi = np.minimum(b, C)
+    left_mask = (a < C).astype(float)
+    A1 = (a - C) / sigma_1
+    H1 = (left_hi - C) / sigma_1
+    left = left_mask * (sigma_1 * (np.arctan(H1) - np.arctan(A1)))
+    right_lo = np.maximum(a, C)
+    right_mask = (b > C).astype(float)
+    L2 = (right_lo - C) / sigma_2
+    B2 = (b - C) / sigma_2
+    right = right_mask * (sigma_2 * (np.arctan(B2) - np.arctan(L2)))
+    return amplitude * (left + right)
 
 
-def integrate_periodic_gaussian(
-    edge_min, edge_max, *, amplitude, mean, sigma, period, truncation
-) -> float:
-    """formula"""
-    a = float(edge_min)
-    b = float(edge_max)
-    if b <= a:
-        return 0.0
-    s = float(sigma)
-    mu = float(mean)
+@VectorizeIntegral(
+    params_to_broadcast=("amplitude", "mean", "sigma"), clips={"sigma": (1e-300, None)}
+)
+def integrate_periodic_gaussian(a, b, *, amplitude, mean, sigma, period, truncation):
     P = float(period)
-    shifts = _shifts(P, int(truncation))
-    A = (a - mu + shifts) / (_RT2 * s)
-    B = (b - mu + shifts) / (_RT2 * s)
-    return float(amplitude * s * np.sqrt(_PI / 2.0) * np.sum(erf(B) - erf(A)))
+    K = int(truncation)
+    shifts = _shifts(P, K)
+    # Build (N, M) arguments via broadcasting
+    Aarg = (a - mean[:, None] + shifts[None, :]) / (_RT2 * sigma[:, None])
+    Barg = (b - mean[:, None] + shifts[None, :]) / (_RT2 * sigma[:, None])
+    # sum across images
+    integ = (
+        amplitude[:, None]
+        * (sigma[:, None] * np.sqrt(_PI / 2.0))
+        * (erf(Barg) - erf(Aarg))
+    )
+    return integ.sum(axis=1)
 
 
-def integrate_periodic_lorentzian(
-    edge_min, edge_max, *, amplitude, mean, sigma, period, truncation
-) -> float:
-    """Formula"""
-    a = float(edge_min)
-    b = float(edge_max)
-    if b <= a:
-        return 0.0
-    s = float(sigma)
-    mu = float(mean)
+@VectorizeIntegral(
+    params_to_broadcast=("amplitude", "mean", "sigma"), clips={"sigma": (1e-300, None)}
+)
+def integrate_periodic_lorentzian(a, b, *, amplitude, mean, sigma, period, truncation):
     P = float(period)
-    shifts = _shifts(P, int(truncation))
-    A = (a - mu + shifts) / s
-    B = (b - mu + shifts) / s
-    return float(amplitude * s * np.sum(np.arctan(B) - np.arctan(A)))
+    K = int(truncation)
+    shifts = _shifts(P, K)
+    Aarg = (a - mean[:, None] + shifts[None, :]) / (sigma[:, None])
+    Barg = (b - mean[:, None] + shifts[None, :]) / (sigma[:, None])
+    integ = amplitude[:, None] * sigma[:, None] * (np.arctan(Barg) - np.arctan(Aarg))
+    return integ.sum(axis=1)
 
 
+@VectorizeIntegral(
+    params_to_broadcast=("amplitude", "mean", "sigma_1", "sigma_2"),
+    clips={"sigma_1": (1e-300, None), "sigma_2": (1e-300, None)},
+)
 def integrate_periodic_asymm_gaussian(
-    edge_min, edge_max, *, amplitude, mean, sigma_1, sigma_2, period, truncation
-) -> float:
-    """
-    Wrapped asymmetric Gaussian:
-      left of center (x < c_k) uses σ1; right (x >= c_k) uses σ2, where c_k = mean - kP.
-    Integral is sum over k, splitting each interval at c_k if it lies inside [a,b].
-    """
-    a = float(edge_min)
-    b = float(edge_max)
-    if b <= a:
-        return 0.0
-    mu = float(mean)
-    s1 = float(sigma_1)
-    s2 = float(sigma_2)
+    a, b, *, amplitude, mean, sigma_1, sigma_2, period, truncation
+):
     P = float(period)
-    shifts = _shifts(P, int(truncation))
-    centers = mu - shifts
+    K = int(truncation)
+    shifts = _shifts(P, K)
+    centers = mean[:, None] - shifts[None, :]
 
+    # Left of center uses sigma_1
     left_hi = np.minimum(b, centers)
-    left_mask = a < centers
-    left = np.zeros_like(centers, dtype=float)
-    if np.any(left_mask):
-        A = (a - centers[left_mask]) / (_RT2 * s1)
-        H = (left_hi[left_mask] - centers[left_mask]) / (_RT2 * s1)
-        left[left_mask] = s1 * np.sqrt(_PI / 2.0) * (erf(H) - erf(A))
+    left_mask = (a < centers).astype(float)
+    A1 = (a - centers) / (_RT2 * sigma_1[:, None])
+    H1 = (left_hi - centers) / (_RT2 * sigma_1[:, None])
+    left = left_mask * (sigma_1[:, None] * np.sqrt(_PI / 2.0) * (erf(H1) - erf(A1)))
 
+    # Right of center uses sigma_2
     right_lo = np.maximum(a, centers)
-    right_mask = b > centers
-    right = np.zeros_like(centers, dtype=float)
-    if np.any(right_mask):
-        L = (right_lo[right_mask] - centers[right_mask]) / (_RT2 * s2)
-        B = (b - centers[right_mask]) / (_RT2 * s2)
-        right[right_mask] = s2 * np.sqrt(_PI / 2.0) * (erf(B) - erf(L))
+    right_mask = (b > centers).astype(float)
+    L2 = (right_lo - centers) / (_RT2 * sigma_2[:, None])
+    B2 = (b - centers) / (_RT2 * sigma_2[:, None])
+    right = right_mask * (sigma_2[:, None] * np.sqrt(_PI / 2.0) * (erf(B2) - erf(L2)))
 
-    return float(amplitude * (left + right).sum())
+    return (amplitude[:, None] * (left + right)).sum(axis=1)
 
 
+@VectorizeIntegral(
+    params_to_broadcast=("amplitude", "mean", "sigma_1", "sigma_2"),
+    clips={"sigma_1": (1e-300, None), "sigma_2": (1e-300, None)},
+)
 def integrate_periodic_asymm_lorentzian(
-    edge_min, edge_max, *, amplitude, mean, sigma_1, sigma_2, period, truncation
-) -> float:
-    """
-    Wrapped asymmetric Lorentzian:
-      left of center uses σ1; right uses σ2, with centers c_k = mean - kP.
-    """
-    a = float(edge_min)
-    b = float(edge_max)
-    if b <= a:
-        return 0.0
-    mu = float(mean)
-    s1 = float(sigma_1)
-    s2 = float(sigma_2)
+    a, b, *, amplitude, mean, sigma_1, sigma_2, period, truncation
+):
     P = float(period)
-    shifts = _shifts(P, int(truncation))
-    centers = mu - shifts
+    K = int(truncation)
+    shifts = _shifts(P, K)
+    centers = mean[:, None] - shifts[None, :]
 
-    # Left segments
     left_hi = np.minimum(b, centers)
-    left_mask = a < centers
-    left = np.zeros_like(centers, dtype=float)
-    if np.any(left_mask):
-        A = (a - centers[left_mask]) / s1
-        H = (left_hi[left_mask] - centers[left_mask]) / s1
-        left[left_mask] = s1 * (np.arctan(H) - np.arctan(A))
+    left_mask = (a < centers).astype(float)
+    A1 = (a - centers) / (sigma_1[:, None])
+    H1 = (left_hi - centers) / (sigma_1[:, None])
+    left = left_mask * (sigma_1[:, None] * (np.arctan(H1) - np.arctan(A1)))
 
-    # Right segments
     right_lo = np.maximum(a, centers)
-    right_mask = b > centers
-    right = np.zeros_like(centers, dtype=float)
-    if np.any(right_mask):
-        L = (right_lo[right_mask] - centers[right_mask]) / s2
-        B = (b - centers[right_mask]) / s2
-        right[right_mask] = s2 * (np.arctan(B) - np.arctan(L))
+    right_mask = (b > centers).astype(float)
+    L2 = (right_lo - centers) / (sigma_2[:, None])
+    B2 = (b - centers) / (sigma_2[:, None])
+    right = right_mask * (sigma_2[:, None] * (np.arctan(B2) - np.arctan(L2)))
 
-    return float(amplitude * (left + right).sum())
+    return (amplitude[:, None] * (left + right)).sum(axis=1)
