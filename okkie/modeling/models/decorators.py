@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
 from functools import lru_cache, wraps
-from typing import TYPE_CHECKING
+from typing import Iterable, Mapping
 
 import numpy as np
-
-if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
 
 _RT2 = np.sqrt(2.0)
 _PI = np.pi
@@ -16,7 +12,7 @@ _PI = np.pi
 def _as_scalar(x) -> float:
     """Accept scalar or length-1 array; return float."""
     a = np.asarray(x, dtype=float).ravel()
-    if a.size == 0:
+    if a.size != 1:
         raise ValueError("edge must be scalar or length-1 array")
     return float(a[0])
 

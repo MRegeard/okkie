@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from scipy.special import erf
 
-from .decorators import VectorizeIntegral, _shifts
+from .decorators import VectorizeIntegral, _as_scalar, _shifts
 
 __all__ = [
     "integrate_asymm_gaussian",
@@ -20,11 +20,12 @@ __all__ = [
 
 _RT2 = np.sqrt(2.0)
 _PI = np.pi
+_SQRT_PI_OVER_2 = np.sqrt(_PI / 2.0)
 
 
 def integrate_trapezoid(model, edge_min, edge_max, n: int = 2048) -> float:
-    a = float(np.asarray(edge_min).ravel()[0])
-    b = float(np.asarray(edge_max).ravel()[0])
+    a = _as_scalar(edge_min)
+    b = _as_scalar(edge_max)
     if b <= a:
         return 0.0
     x = np.linspace(a, b, n, dtype=float)
@@ -39,7 +40,7 @@ def integrate_gaussian(a, b, *, amplitude, mean, sigma):
     # amplitude, mean, sigma are 1D arrays (flat) of same length
     AA = (a - mean) / (_RT2 * sigma)
     BB = (b - mean) / (_RT2 * sigma)
-    return amplitude * sigma * np.sqrt(_PI / 2.0) * (erf(BB) - erf(AA))
+    return amplitude * sigma * _SQRT_PI_OVER_2 * (erf(BB) - erf(AA))
 
 
 @VectorizeIntegral(
@@ -62,13 +63,13 @@ def integrate_asymm_gaussian(a, b, *, amplitude, mean, sigma_1, sigma_2):
     left_mask = (a < C).astype(float)
     A1 = (a - C) / (_RT2 * sigma_1)
     H1 = (left_hi - C) / (_RT2 * sigma_1)
-    left = left_mask * (sigma_1 * np.sqrt(_PI / 2.0) * (erf(H1) - erf(A1)))
+    left = left_mask * (sigma_1 * _SQRT_PI_OVER_2 * (erf(H1) - erf(A1)))
     # right segment [max(a, C), b] uses sigma_2
     right_lo = np.maximum(a, C)
     right_mask = (b > C).astype(float)
     L2 = (right_lo - C) / (_RT2 * sigma_2)
     B2 = (b - C) / (_RT2 * sigma_2)
-    right = right_mask * (sigma_2 * np.sqrt(_PI / 2.0) * (erf(B2) - erf(L2)))
+    right = right_mask * (sigma_2 * _SQRT_PI_OVER_2 * (erf(B2) - erf(L2)))
     return amplitude * (left + right)
 
 
@@ -104,7 +105,7 @@ def integrate_periodic_gaussian(a, b, *, amplitude, mean, sigma, period, truncat
     # sum across images
     integ = (
         amplitude[:, None]
-        * (sigma[:, None] * np.sqrt(_PI / 2.0))
+        * (sigma[:, None] * _SQRT_PI_OVER_2)
         * (erf(Barg) - erf(Aarg))
     )
     return integ.sum(axis=1)
@@ -140,14 +141,14 @@ def integrate_periodic_asymm_gaussian(
     left_mask = (a < centers).astype(float)
     A1 = (a - centers) / (_RT2 * sigma_1[:, None])
     H1 = (left_hi - centers) / (_RT2 * sigma_1[:, None])
-    left = left_mask * (sigma_1[:, None] * np.sqrt(_PI / 2.0) * (erf(H1) - erf(A1)))
+    left = left_mask * (sigma_1[:, None] * _SQRT_PI_OVER_2 * (erf(H1) - erf(A1)))
 
     # Right of center uses sigma_2
     right_lo = np.maximum(a, centers)
     right_mask = (b > centers).astype(float)
     L2 = (right_lo - centers) / (_RT2 * sigma_2[:, None])
     B2 = (b - centers) / (_RT2 * sigma_2[:, None])
-    right = right_mask * (sigma_2[:, None] * np.sqrt(_PI / 2.0) * (erf(B2) - erf(L2)))
+    right = right_mask * (sigma_2[:, None] * _SQRT_PI_OVER_2 * (erf(B2) - erf(L2)))
 
     return (amplitude[:, None] * (left + right)).sum(axis=1)
 
