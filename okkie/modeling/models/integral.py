@@ -3,17 +3,18 @@ from __future__ import annotations
 from functools import lru_cache
 
 import numpy as np
+from scipy.special import erf
 
 __all__ = [
-    "integrate_trapezoid",
-    "integrate_gaussian",
-    "integrate_lorentzian",
     "integrate_asymm_gaussian",
     "integrate_asymm_lorentzian",
-    "integrate_periodic_gaussian",
-    "integrate_periodic_lorentzian",
+    "integrate_gaussian",
+    "integrate_lorentzian",
     "integrate_periodic_asymm_gaussian",
     "integrate_periodic_asymm_lorentzian",
+    "integrate_periodic_gaussian",
+    "integrate_periodic_lorentzian",
+    "integrate_trapezoid",
 ]
 
 
@@ -26,11 +27,6 @@ def _shifts(period: float, truncation: int) -> np.ndarray:
 
 _RT2 = np.sqrt(2.0)
 _PI = np.pi
-
-
-def _erf(x):
-    # Vectorized erf without requiring SciPy
-    return np.erf(x)  # numpy provides vectorized erf
 
 
 def integrate_trapezoid(
@@ -56,7 +52,7 @@ def integrate_gaussian(edge_min, edge_max, *, amplitude, mean, sigma) -> float:
     mu = float(mean)
     A = (a - mu) / (_RT2 * s)
     B = (b - mu) / (_RT2 * s)
-    return float(amplitude * s * np.sqrt(_PI / 2.0) * (_erf(B) - _erf(A)))
+    return float(amplitude * s * np.sqrt(_PI / 2.0) * (erf(B) - erf(A)))
 
 
 def integrate_lorentzian(edge_min, edge_max, *, amplitude, mean, sigma) -> float:
@@ -89,7 +85,7 @@ def integrate_asymm_gaussian(
     if a < c:
         A = (a - c) / (_RT2 * s1)
         H = (left_hi - c) / (_RT2 * s1)
-        left = s1 * np.sqrt(_PI / 2.0) * (_erf(H) - _erf(A))
+        left = s1 * np.sqrt(_PI / 2.0) * (erf(H) - erf(A))
 
     # right part: [max(a, c), b] with simga_2
     right_lo = max(a, c)
@@ -97,7 +93,7 @@ def integrate_asymm_gaussian(
     if b > c:
         L = (right_lo - c) / (_RT2 * s2)
         B = (b - c) / (_RT2 * s2)
-        right = s2 * np.sqrt(_PI / 2.0) * (_erf(B) - _erf(L))
+        right = s2 * np.sqrt(_PI / 2.0) * (erf(B) - erf(L))
 
     return float(amplitude * (left + right))
 
@@ -147,7 +143,7 @@ def integrate_periodic_gaussian(
     shifts = _shifts(P, int(truncation))
     A = (a - mu + shifts) / (_RT2 * s)
     B = (b - mu + shifts) / (_RT2 * s)
-    return float(amplitude * s * np.sqrt(_PI / 2.0) * np.sum(_erf(B) - _erf(A)))
+    return float(amplitude * s * np.sqrt(_PI / 2.0) * np.sum(erf(B) - erf(A)))
 
 
 def integrate_periodic_lorentzian(
@@ -192,7 +188,7 @@ def integrate_periodic_asymm_gaussian(
     if np.any(left_mask):
         A = (a - centers[left_mask]) / (_RT2 * s1)
         H = (left_hi[left_mask] - centers[left_mask]) / (_RT2 * s1)
-        left[left_mask] = s1 * np.sqrt(_PI / 2.0) * (_erf(H) - _erf(A))
+        left[left_mask] = s1 * np.sqrt(_PI / 2.0) * (erf(H) - erf(A))
 
     right_lo = np.maximum(a, centers)
     right_mask = b > centers
@@ -200,7 +196,7 @@ def integrate_periodic_asymm_gaussian(
     if np.any(right_mask):
         L = (right_lo[right_mask] - centers[right_mask]) / (_RT2 * s2)
         B = (b - centers[right_mask]) / (_RT2 * s2)
-        right[right_mask] = s2 * np.sqrt(_PI / 2.0) * (_erf(B) - _erf(L))
+        right[right_mask] = s2 * np.sqrt(_PI / 2.0) * (erf(B) - erf(L))
 
     return float(amplitude * (left + right).sum())
 
