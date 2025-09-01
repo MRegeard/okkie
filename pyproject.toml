@@ -36,7 +36,6 @@ dependencies = [
     "astropy>=6.0",
     "packaging>=22.0.0",
     "PyYAML>=6.0.0",
-    "naima>=0.10",
     "scipy>=1.13",
 ]
 
@@ -45,6 +44,7 @@ dependencies = [
 recommended = [
     "pint-pulsar>=1.0",
     "matplotlib>=3.6.0",
+    "naima>=0.10",
 ]
 
 tests-only = [
