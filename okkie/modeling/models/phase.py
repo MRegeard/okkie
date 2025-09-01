@@ -399,10 +399,9 @@ class LorentzianPhaseModel(PhaseModel):
 
         return values
 
-    def to_pdf(self) -> LorentzianPhaseModel:
-        """Return a pdf version of the model."""
-        norm_amp = 1 / (np.pi * self.sigma.value)
-        return self.__class__(amplitude=norm_amp, mean=self.mean, sigma=self.sigma)
+    def to_norm(self) -> LorentzianNormPhaseModel:
+        """Return the normalized version of the model."""
+        return LorentzianNormPhaseModel(mean=self.mean, sigma=self.sigma)
 
     def integral(self, phase_min: float, phase_max: float) -> float:
         """Integral between `phase_min` and `phase_max`.
@@ -468,14 +467,10 @@ class AsymmetricLorentzianPhaseModel(PhaseModel):
 
         return values
 
-    def to_pdf(self) -> AsymmetricLorentzianPhaseModel:
-        """Return a pdf version of the model."""
-        norm_amp = 2 / (np.pi * (self.sigma_1.value + self.sigma_2.value))
-        return self.__class__(
-            amplitude=norm_amp,
-            mean=self.mean,
-            sigma_1=self.sigma_1,
-            sigma_2=self.sigma_2,
+    def to_norm(self) -> AsymmetricLorentzianNormPhaseModel:
+        """Return the normalized version of the model."""
+        return AsymmetricLorentzianNormPhaseModel(
+            mean=self.mean, sigma_1=self.sigma_1, sigma_2=self.sigma_2
         )
 
     def integral(self, phase_min: float, phase_max: float) -> float:
@@ -540,10 +535,9 @@ class GaussianPhaseModel(PhaseModel):
 
         return amplitude * gaussians.sum(axis=1) / normalization
 
-    def to_pdf(self) -> GaussianPhaseModel:
-        """Return a pdf version of the model."""
-        norm_amp = 1 / (self.sigma.value * np.sqrt(2 * np.pi))
-        return self.__class__(amplitude=norm_amp, sigma=self.sigma, mean=self.mean)
+    def to_norm(self) -> GaussianNormPhaseModel:
+        """Return the normalized version of the model."""
+        return GaussianNormPhaseModel(mean=self.mean, sigma=self.sigma)
 
     def integral(self, phase_min: float, phase_max: float) -> float:
         """Integral between `phase_min` and `phase_max`.
@@ -604,16 +598,10 @@ class AsymmetricGaussianPhaseModel(PhaseModel):
 
         return amplitude * gaussians.sum(axis=1) / normalization
 
-    def to_pdf(self) -> AsymmetricGaussianPhaseModel:
-        """Return a pdf version of the model."""
-        norm_amp = 2 / (
-            (np.sqrt(2 * np.pi)) * (self.sigma_1.value + self.sigma_2.value)
-        )
-        return self.__class__(
-            amplitude=norm_amp,
-            mean=self.mean,
-            sigma_1=self.sigma_1,
-            sigma_2=self.sigma_2,
+    def to_norm(self) -> AsymmetricGaussianNormPhaseModel:
+        """Return the normalized version of the model."""
+        return AsymmetricGaussianNormPhaseModel(
+            mean=self.mean, sigma_1=self.sigma_1, sigma_2=self.sigma_2
         )
 
     def integral(self, phase_min: float, phase_max: float) -> float:
@@ -702,8 +690,8 @@ class TemplatePhaseModel(PhaseModel):
         shifted_phase = (phase + phase_shift) % period
         return self._evaluate((shifted_phase,), clip=True)
 
-    def to_pdf(self, interp_kwargs: dict[str, Any] | None = None) -> TemplatePhaseModel:
-        """Return a pdf version of the model."""
+    def to_norm(self, interp_kwargs: dict[str, Any] | None = None) -> TemplatePhaseModel:
+        """Return the normalized version of the model."""
         interp_kwargs = interp_kwargs or {}
         norm = 1 / self.integral(0, self.period)
         return self.__class__(

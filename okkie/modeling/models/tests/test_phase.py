@@ -159,6 +159,37 @@ def test_norm_models(phase):
     assert_allclose(model(0), model(1))
 
 
+NORM_MODELS = [
+    (
+        GaussianPhaseModel(amplitude=10, mean=0.3, sigma=0.1),
+        GaussianNormPhaseModel,
+    ),
+    (
+        LorentzianPhaseModel(amplitude=12, sigma=0.1, mean=0.7),
+        LorentzianNormPhaseModel,
+    ),
+    (
+        AsymmetricGaussianPhaseModel(
+            amplitude=25, mean=0.45, sigma_1=0.05, sigma_2=0.085
+        ),
+        AsymmetricGaussianNormPhaseModel,
+    ),
+    (
+        AsymmetricLorentzianPhaseModel(
+            amplitude=7, mean=0.1, sigma_1=0.01, sigma_2=0.1
+        ),
+        AsymmetricLorentzianNormPhaseModel,
+    ),
+]
+
+
+@pytest.mark.parametrize("model, norm_cls", NORM_MODELS)
+def test_to_norm_returns_norm(model, norm_cls):
+    norm_model = model.to_norm()
+    assert isinstance(norm_model, norm_cls)
+    assert_allclose(norm_model.integral(0, 1), 1.0)
+
+
 def test_template():
     phases = np.linspace(0, 1, 100)
     model = GaussianPhaseModel(mean=0.5, sigma=0.1, amplitude=10)
@@ -173,5 +204,5 @@ def test_template():
     template.phase_shift.value = 0.1
     assert_allclose(template(0.5), 6.0641672)
 
-    pdf = template.to_pdf()
-    assert_allclose(pdf.integral(0, 1), 1.0)
+    norm = template.to_norm()
+    assert_allclose(norm.integral(0, 1), 1.0)
