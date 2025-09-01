@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import logging
 import operator
+from typing import TYPE_CHECKING
 
 import astropy.units as u
 import matplotlib.pyplot as plt
@@ -10,6 +13,10 @@ from gammapy.modeling.models import ModelBase
 from gammapy.utils.interpolation import ScaledRegularGridInterpolator
 
 from okkie.utils.models import gammapy_build_parameters_from_dict
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+    from typing import Any
 
 from .integral import (
     integrate_periodic_asymm_gaussian,
@@ -23,20 +30,20 @@ log = logging.getLogger(__name__)
 
 
 __all__ = [
-    "PhaseModel",
-    "ConstantPhaseModel",
-    "CompoundPhaseModel",
-    "LorentzianPhaseModel",
-    "AsymmetricLorentzianPhaseModel",
-    "GaussianPhaseModel",
+    "AsymmetricGaussianNormPhaseModel",
     "AsymmetricGaussianPhaseModel",
-    "TemplatePhaseModel",
-    "ScalePhaseModel",
+    "AsymmetricLorentzianNormPhaseModel",
+    "AsymmetricLorentzianPhaseModel",
+    "CompoundPhaseModel",
+    "ConstantPhaseModel",
     "GatePhaseModel",
     "GaussianNormPhaseModel",
-    "AsymmetricGaussianNormPhaseModel",
+    "GaussianPhaseModel",
     "LorentzianNormPhaseModel",
-    "AsymmetricLorentzianNormPhaseModel",
+    "LorentzianPhaseModel",
+    "PhaseModel",
+    "ScalePhaseModel",
+    "TemplatePhaseModel",
 ]
 
 DEFAULT_WRAPPING_TRUNCTAION = 5
@@ -49,36 +56,35 @@ class PhaseModel(ModelBase):
     period = 1
     wrapping_truncation = DEFAULT_WRAPPING_TRUNCTAION
 
-    def __call__(self, phase):
+    def __call__(self, phase: u.Quantity) -> u.Quantity:
         kwargs = {par.name: par.quantity for par in self.parameters}
         kwargs["period"] = self.period
         kwargs["wrapping_truncation"] = self.wrapping_truncation
         return self.evaluate(phase, **kwargs)
 
-    def __add__(self, model):
+    def __add__(self, model: PhaseModel | float) -> CompoundPhaseModel:
         if not isinstance(model, PhaseModel):
             model = ConstantPhaseModel(const=model)
         return CompoundPhaseModel(self, model, operator.add)
 
-    def __mul__(self, other):
+    def __mul__(self, other: PhaseModel) -> CompoundPhaseModel:
         if isinstance(other, PhaseModel):
             return CompoundPhaseModel(self, other, operator.mul)
-        else:
-            raise TypeError(f"Multiplication invalid for type {other!r}")
+        raise TypeError(f"Multiplication invalid for type {other!r}")
 
-    def __radd__(self, model):
+    def __radd__(self, model: PhaseModel | float) -> CompoundPhaseModel:
         return self.__add__(model)
 
-    def __sub__(self, model):
+    def __sub__(self, model: PhaseModel | float) -> CompoundPhaseModel:
         if not isinstance(model, PhaseModel):
             model = ConstantPhaseModel(const=model)
         return CompoundPhaseModel(self, model, operator.sub)
 
-    def __rsub__(self, model):
+    def __rsub__(self, model: PhaseModel | float) -> CompoundPhaseModel:
         return self.__sub__(model)
 
     @classmethod
-    def from_dict(cls, data, **kwargs):
+    def from_dict(cls, data: dict[str, Any], **kwargs: Any) -> PhaseModel:
         key0 = next(iter(data))
 
         if key0 == "phase":
@@ -95,7 +101,12 @@ class PhaseModel(ModelBase):
 
         return cls.from_parameters(parameters, **kwargs)
 
-    def _propagate_error(self, epsilon, fct, **kwargs):
+    def _propagate_error(
+        self,
+        epsilon: float,
+        fct: Callable[..., u.Quantity],
+        **kwargs: Any,
+    ) -> u.Quantity:
         """Evaluate error for a given function with uncertainty propagation.
 
         Parameters
@@ -133,7 +144,9 @@ class PhaseModel(ModelBase):
         f_err = np.sqrt(np.diagonal(f_cov))
         return u.Quantity([np.atleast_1d(f_0.value), f_err], unit=f_0.unit).squeeze()
 
-    def evaluate_error(self, phase, epsilon=1e-4):
+    def evaluate_error(
+        self, phase: u.Quantity, epsilon: float = 1e-4
+    ) -> tuple[u.Quantity, u.Quantity]:
         """Evaluate phase model with error propagation.
 
         Parameters
@@ -151,7 +164,7 @@ class PhaseModel(ModelBase):
         """
         return self._propagate_error(epsilon=epsilon, fct=self, phase=phase)
 
-    def integral(self, phase_min, phase_max):
+    def integral(self, phase_min: u.Quantity, phase_max: u.Quantity) -> u.Quantity:
         r"""Integrate phase model numerically if no analytical solution defined.
 
         .. math::
@@ -173,7 +186,13 @@ class PhaseModel(ModelBase):
         else:
             return integrate_trapezoid(self, phase_min, phase_max)
 
-    def integral_error(self, phase_min, phase_max, epsilon=1e-4, **kwargs):
+    def integral_error(
+        self,
+        phase_min: u.Quantity,
+        phase_max: u.Quantity,
+        epsilon: float = 1e-4,
+        **kwargs: Any,
+    ) -> tuple[u.Quantity, u.Quantity]:
         """Evaluate the error of the integral of a given phase model in a given phase range.
 
         Parameters
@@ -200,11 +219,11 @@ class PhaseModel(ModelBase):
 
     def plot(
         self,
-        phase_bounds,
-        ax=None,
-        n_points=100,
-        **kwargs,
-    ):
+        phase_bounds: MapAxis | Sequence[float] | u.Quantity,
+        ax: plt.Axes | None = None,
+        n_points: int = 100,
+        **kwargs: Any,
+    ) -> plt.Axes:
         # TODO: Move to periodic boundary in Gammapy 1.3
 
         if isinstance(phase_bounds, (tuple, list, u.Quantity)):
@@ -229,11 +248,11 @@ class PhaseModel(ModelBase):
 
     def plot_error(
         self,
-        phase_bounds,
-        ax=None,
-        n_points=100,
-        **kwargs,
-    ):
+        phase_bounds: MapAxis | Sequence[float] | u.Quantity,
+        ax: plt.Axes | None = None,
+        n_points: int = 100,
+        **kwargs: Any,
+    ) -> plt.Axes:
         # TODO: Move to periodic boundary in Gammapy 1.3
 
         if isinstance(phase_bounds, (tuple, list, u.Quantity)):
@@ -263,11 +282,11 @@ class PhaseModel(ModelBase):
         return ax
 
     @staticmethod
-    def _plot_format_ax(ax):
+    def _plot_format_ax(ax: plt.Axes) -> None:
         ax.set_xlabel("Phase")
         ax.set_ylabel("Counts")
 
-    def _get_plot(self, phase):
+    def _get_plot(self, phase: MapAxis) -> tuple[u.Quantity, u.Quantity]:
         # TODO: handle case with several period"
         return self.evaluate_error(phase.center)
 
@@ -277,11 +296,16 @@ class ConstantPhaseModel(PhaseModel):
     const = Parameter("const", 1, interp="lin", scale_method="factor1")
 
     @staticmethod
-    def evaluate(phase, const, period, wrapping_truncation):
+    def evaluate(
+        phase: u.Quantity,
+        const: u.Quantity,
+        period: float,
+        wrapping_truncation: int,
+    ) -> u.Quantity:
         """Evaluate the model (static function)."""
         return np.ones(np.atleast_1d(phase).shape) * const
 
-    def integral(self, phase_min, phase_max):
+    def integral(self, phase_min: u.Quantity, phase_max: u.Quantity) -> u.Quantity:
         phase_min %= self.period
         if phase_max != self.period:
             phase_max %= self.period
@@ -291,31 +315,36 @@ class ConstantPhaseModel(PhaseModel):
 class CompoundPhaseModel(PhaseModel):
     tag = ["CompoundPhaseModel", "compound"]
 
-    def __init__(self, model1, model2, operator):
+    def __init__(
+        self,
+        model1: PhaseModel,
+        model2: PhaseModel,
+        operator: Callable[[u.Quantity, u.Quantity], u.Quantity],
+    ) -> None:
         self.model1 = model1
         self.model2 = model2
         self.operator = operator
         super().__init__()
 
     @property
-    def _models(self):
+    def _models(self) -> list[PhaseModel]:
         return [self.model1, self.model2]
 
     @property
-    def parameters(self):
+    def parameters(self) -> Parameters:
         return self.model1.parameters + self.model2.parameters
 
     @property
-    def parameters_unique_names(self):
-        names = []
+    def parameters_unique_names(self) -> list[str]:
+        names: list[str] = []
         for idx, model in enumerate(self._models):
             for par_name in model.parameters_unique_names:
-                components = [f"model{idx+1}", par_name]
+                components = [f"model{idx + 1}", par_name]
                 name = ".".join(components)
                 names.append(name)
         return names
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"{self.__class__.__name__}\n"
             f"    Component 1 : {self.model1}\n"
@@ -323,12 +352,12 @@ class CompoundPhaseModel(PhaseModel):
             f"    Operator : {self.operator.__name__}\n"
         )
 
-    def __call__(self, phase):
+    def __call__(self, phase: u.Quantity) -> u.Quantity:
         val1 = self.model1(phase)
         val2 = self.model2(phase)
         return self.operator(val1, val2)
 
-    def evaluate(self, phase, *args):
+    def evaluate(self, phase: u.Quantity, *args: u.Quantity) -> u.Quantity:
         args1 = args[: len(self.model1.parameters)]
         args2 = args[len(self.model1.parameters) :]
         val1 = self.model1.evaluate(phase, *args1)
@@ -345,7 +374,14 @@ class LorentzianPhaseModel(PhaseModel):
     sigma = Parameter("sigma", 0.1)
 
     @staticmethod
-    def evaluate(phase, amplitude, mean, sigma, period, wrapping_truncation):
+    def evaluate(
+        phase: u.Quantity,
+        amplitude: u.Quantity,
+        mean: u.Quantity,
+        sigma: u.Quantity,
+        period: float,
+        wrapping_truncation: int,
+    ) -> u.Quantity:
         mean = mean % period
         mean = mean.reshape((1,))  # Trick to pass in float or int
         phase = phase % period
@@ -363,12 +399,12 @@ class LorentzianPhaseModel(PhaseModel):
 
         return values
 
-    def to_pdf(self):
+    def to_pdf(self) -> LorentzianPhaseModel:
         """Return a pdf version of the model."""
         norm_amp = 1 / (np.pi * self.sigma.value)
         return self.__class__(amplitude=norm_amp, mean=self.mean, sigma=self.sigma)
 
-    def integral(self, phase_min, phase_max):
+    def integral(self, phase_min: float, phase_max: float) -> float:
         """Integral between `phase_min` and `phase_max`.
 
         Parameters
@@ -402,7 +438,15 @@ class AsymmetricLorentzianPhaseModel(PhaseModel):
     sigma_2 = Parameter("sigma_2", 0.1)
 
     @staticmethod
-    def evaluate(phase, amplitude, mean, sigma_1, sigma_2, period, wrapping_truncation):
+    def evaluate(
+        phase: u.Quantity,
+        amplitude: u.Quantity,
+        mean: u.Quantity,
+        sigma_1: u.Quantity,
+        sigma_2: u.Quantity,
+        period: float,
+        wrapping_truncation: int,
+    ) -> u.Quantity:
         mean = mean % period
         mean = mean.reshape((1,))  # Trick to pass in float or int
         phase = phase % period
@@ -424,7 +468,7 @@ class AsymmetricLorentzianPhaseModel(PhaseModel):
 
         return values
 
-    def to_pdf(self):
+    def to_pdf(self) -> AsymmetricLorentzianPhaseModel:
         """Return a pdf version of the model."""
         norm_amp = 2 / (np.pi * (self.sigma_1.value + self.sigma_2.value))
         return self.__class__(
@@ -434,7 +478,7 @@ class AsymmetricLorentzianPhaseModel(PhaseModel):
             sigma_2=self.sigma_2,
         )
 
-    def integral(self, phase_min, phase_max):
+    def integral(self, phase_min: float, phase_max: float) -> float:
         """Integral between `phase_min` and `phase_max`.
 
         Parameters
@@ -473,7 +517,14 @@ class GaussianPhaseModel(PhaseModel):
     sigma = Parameter("sigma", 0.1)
 
     @staticmethod
-    def evaluate(phase, amplitude, mean, sigma, period, wrapping_truncation):
+    def evaluate(
+        phase: u.Quantity,
+        amplitude: u.Quantity,
+        mean: u.Quantity,
+        sigma: u.Quantity,
+        period: float,
+        wrapping_truncation: int,
+    ) -> u.Quantity:
         mean = mean % period
         mean = mean.reshape((1,))  # Trick to pass in float or int
         phase = phase % period
@@ -485,18 +536,16 @@ class GaussianPhaseModel(PhaseModel):
 
         gaussians = np.exp(-(delta_phase_wrapped**2) / (2 * sigma**2))
 
-        normalization = np.sum(
-            np.exp(-(periodic_shifts**2) / (2 * sigma**2))
-        )
+        normalization = np.sum(np.exp(-(periodic_shifts**2) / (2 * sigma**2)))
 
         return amplitude * gaussians.sum(axis=1) / normalization
 
-    def to_pdf(self):
+    def to_pdf(self) -> GaussianPhaseModel:
         """Return a pdf version of the model."""
         norm_amp = 1 / (self.sigma.value * np.sqrt(2 * np.pi))
         return self.__class__(amplitude=norm_amp, sigma=self.sigma, mean=self.mean)
 
-    def integral(self, phase_min, phase_max):
+    def integral(self, phase_min: float, phase_max: float) -> float:
         """Integral between `phase_min` and `phase_max`.
 
         Parameters
@@ -555,7 +604,7 @@ class AsymmetricGaussianPhaseModel(PhaseModel):
 
         return amplitude * gaussians.sum(axis=1) / normalization
 
-    def to_pdf(self):
+    def to_pdf(self) -> AsymmetricGaussianPhaseModel:
         """Return a pdf version of the model."""
         norm_amp = 2 / (
             (np.sqrt(2 * np.pi)) * (self.sigma_1.value + self.sigma_2.value)
@@ -567,7 +616,7 @@ class AsymmetricGaussianPhaseModel(PhaseModel):
             sigma_2=self.sigma_2,
         )
 
-    def integral(self, phase_min, phase_max):
+    def integral(self, phase_min: float, phase_max: float) -> float:
         """Integral between `phase_min` and `phase_max`.
 
         Parameters
@@ -620,7 +669,13 @@ class TemplatePhaseModel(PhaseModel):
     tag = ["TemplatePhaseModel", "temp-phase"]
     phase_shift = Parameter("phase_shift", 0)
 
-    def __init__(self, phase, values, phase_shift=0, interp_kwargs=None):
+    def __init__(
+        self,
+        phase: np.ndarray,
+        values: np.ndarray,
+        phase_shift: float = 0,
+        interp_kwargs: dict[str, Any] | None = None,
+    ) -> None:
         self.phase = phase
         self.values = values
         interp_kwargs = interp_kwargs or {}
@@ -637,11 +692,17 @@ class TemplatePhaseModel(PhaseModel):
         super().__init__()
         self.phase_shift.value = phase_shift
 
-    def evaluate(self, phase, phase_shift, period, wrapping_truncation):
+    def evaluate(
+        self,
+        phase: u.Quantity,
+        phase_shift: u.Quantity,
+        period: float,
+        wrapping_truncation: int,
+    ) -> u.Quantity:
         shifted_phase = (phase + phase_shift) % period
         return self._evaluate((shifted_phase,), clip=True)
 
-    def to_pdf(self, interp_kwargs=None):
+    def to_pdf(self, interp_kwargs: dict[str, Any] | None = None) -> TemplatePhaseModel:
         """Return a pdf version of the model."""
         interp_kwargs = interp_kwargs or {}
         norm = 1 / self.integral(0, self.period)
@@ -668,22 +729,34 @@ class ScalePhaseModel(PhaseModel):
     tag = ["ScalePhaseModel", "scale"]
     scale = Parameter("scale", 1)
 
-    def __init__(self, model, scale=scale.quantity):
+    def __init__(self, model: PhaseModel, scale: u.Quantity = scale.quantity) -> None:
         self.model = model
         self._covariance = None
         super().__init__()
 
     @property
-    def parameters(self):
+    def parameters(self) -> Parameters:
         return Parameters([self.scale] + list(self.model.parameters))
 
-    def evaluate(self, phase, scale, period, wrapping_truncation, **kwargs):
+    def evaluate(
+        self,
+        phase: u.Quantity,
+        scale: u.Quantity,
+        period: float,
+        wrapping_truncation: int,
+        **kwargs: Any,
+    ) -> u.Quantity:
         return scale * self.model(phase)
 
-    def integral(self, phase_min, phase_max, **kwargs):
+    def integral(
+        self,
+        phase_min: u.Quantity,
+        phase_max: u.Quantity,
+        **kwargs: Any,
+    ) -> u.Quantity:
         return self.scale.value * self.model.integral(phase_min, phase_max, **kwargs)
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         """
         If an attribute isn't found on this wrapper, try to fetch a Parameter
         (or attribute) from the wrapped model. This allows `scale.mean.value = ...`.
@@ -697,7 +770,7 @@ class ScalePhaseModel(PhaseModel):
             return getattr(self.model, name)
         raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}")
 
-    def __dir__(self):
+    def __dir__(self) -> list[str]:
         """Improve tab-completion: include wrapped parameter names."""
         base = set(super().__dir__())
         try:
@@ -713,10 +786,20 @@ class GatePhaseModel(PhaseModel):
     phi_1 = Parameter("phi_1", "0.25")
     phi_2 = Parameter("phi_2", "0.75")
 
-    def evaluate(self, phase, amplitude, phi_1, phi_2, period, wrapping_truncation):
+    def evaluate(
+        self,
+        phase: u.Quantity,
+        amplitude: u.Quantity,
+        phi_1: u.Quantity,
+        phi_2: u.Quantity,
+        period: float,
+        wrapping_truncation: int,
+    ) -> u.Quantity:
         return np.where((phase > phi_1) & (phase < phi_2), amplitude, 0)
 
-    def integral(self, phase_min, phase_max, **kwargs):
+    def integral(
+        self, phase_min: u.Quantity, phase_max: u.Quantity, **kwargs: Any
+    ) -> u.Quantity:
         return self.amplitude.value * (self.phi_2.value - self.phi_1.value)
 
 
@@ -728,7 +811,13 @@ class GaussianNormPhaseModel(PhaseModel):
     sigma = Parameter("sigma", 0.1)
 
     @staticmethod
-    def evaluate(phase, mean, sigma, period, wrapping_truncation):
+    def evaluate(
+        phase: u.Quantity,
+        mean: u.Quantity,
+        sigma: u.Quantity,
+        period: float,
+        wrapping_truncation: int,
+    ) -> u.Quantity:
         mean = mean % period
         mean = mean.reshape((1,))  # Trick to pass in float or int
         phase = phase % period
@@ -750,7 +839,7 @@ class GaussianNormPhaseModel(PhaseModel):
         den = np.clip(den, 1e-300, np.inf)
         return num / den
 
-    def integral(self, phase_min, phase_max, **kwargs):
+    def integral(self, phase_min: float, phase_max: float, **kwargs: Any) -> float:
         full = integrate_periodic_gaussian(
             edge_min=0.0,
             edge_max=self.period,
@@ -782,7 +871,14 @@ class AsymmetricGaussianNormPhaseModel(PhaseModel):
     sigma_2 = Parameter("sigma_2", 0.1)
 
     @staticmethod
-    def evaluate(phase, mean, sigma_1, sigma_2, period, wrapping_truncation):
+    def evaluate(
+        phase: u.Quantity,
+        mean: u.Quantity,
+        sigma_1: u.Quantity,
+        sigma_2: u.Quantity,
+        period: float,
+        wrapping_truncation: int,
+    ) -> u.Quantity:
         mean = mean % period
         mean = mean.reshape((1,))  # Trick to pass in float or int
         phase = phase % period
@@ -806,7 +902,7 @@ class AsymmetricGaussianNormPhaseModel(PhaseModel):
         den = np.clip(den, 1e-300, np.inf)
         return num / den
 
-    def integral(self, phase_min, phase_max, **kwargs):
+    def integral(self, phase_min: float, phase_max: float, **kwargs: Any) -> float:
         full = integrate_periodic_asymm_gaussian(
             edge_min=0.0,
             edge_max=self.period,
@@ -839,7 +935,13 @@ class LorentzianNormPhaseModel(PhaseModel):
     sigma = Parameter("sigma", 0.1)
 
     @staticmethod
-    def evaluate(phase, mean, sigma, period, wrapping_truncation):
+    def evaluate(
+        phase: u.Quantity,
+        mean: u.Quantity,
+        sigma: u.Quantity,
+        period: float,
+        wrapping_truncation: int,
+    ) -> u.Quantity:
         mean = mean % period
         mean = mean.reshape((1,))  # Trick to pass in float or int
         phase = phase % period
@@ -861,7 +963,7 @@ class LorentzianNormPhaseModel(PhaseModel):
         den = np.clip(den, 1e-300, np.inf)
         return num / den
 
-    def integral(self, phase_min, phase_max, **kwargs):
+    def integral(self, phase_min: float, phase_max: float, **kwargs: Any) -> float:
         full = integrate_periodic_lorentzian(
             edge_min=0.0,
             edge_max=self.period,
@@ -893,7 +995,14 @@ class AsymmetricLorentzianNormPhaseModel(PhaseModel):
     sigma_2 = Parameter("sigma_2", 0.1)
 
     @staticmethod
-    def evaluate(phase, mean, sigma_1, sigma_2, period, wrapping_truncation):
+    def evaluate(
+        phase: u.Quantity,
+        mean: u.Quantity,
+        sigma_1: u.Quantity,
+        sigma_2: u.Quantity,
+        period: float,
+        wrapping_truncation: int,
+    ) -> u.Quantity:
         mean = mean % period
         mean = mean.reshape((1,))  # Trick to pass in float or int
         phase = phase % period
@@ -917,7 +1026,7 @@ class AsymmetricLorentzianNormPhaseModel(PhaseModel):
         den = np.clip(den, 1e-300, np.inf)
         return num / den
 
-    def integral(self, phase_min, phase_max, **kwargs):
+    def integral(self, phase_min: float, phase_max: float, **kwargs: Any) -> float:
         full = integrate_periodic_asymm_lorentzian(
             edge_min=0.0,
             edge_max=self.period,
