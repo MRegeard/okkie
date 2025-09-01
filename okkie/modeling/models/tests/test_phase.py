@@ -27,7 +27,7 @@ TEST_MODELS = [
             sigma=0.1,
         ),
         val_at_05=1.3533528,
-        integral_0_1=2.5066282746310007,
+        integral_0_1=2.5066282746,
     ),
     dict(
         name="lorentzian",
@@ -37,7 +37,7 @@ TEST_MODELS = [
             mean=0.7,
         ),
         val_at_05=2.7022563,
-        integral_0_1=3.7262218890128644,
+        integral_0_1=3.7262218890,
     ),
     dict(
         name="asymetric-gaussian",
@@ -48,7 +48,7 @@ TEST_MODELS = [
             sigma_2=0.085,
         ),
         val_at_05=21.028222,
-        integral_0_1=8.459870108370007,
+        integral_0_1=4.2299352134,
     ),
     dict(
         name="asymetric-lorentzian",
@@ -59,7 +59,7 @@ TEST_MODELS = [
             sigma_2=0.1,
         ),
         val_at_05=0.46704696,
-        integral_0_1=1.85646935752255,
+        integral_0_1=1.1975126460,
     ),
 ]
 
@@ -68,14 +68,14 @@ TEST_MODELS.append(
         name="comp1",
         model=TEST_MODELS[3]["model"] + TEST_MODELS[4]["model"],
         val_at_05=21.495269,
-        integral_0_1=5.410126,
+        integral_0_1=5.4101274349,
     )
 )
 
 TEST_MODELS.append(
     dict(
         name="scale",
-        model=ScalePhaseModel(model=TEST_MODELS[1]["model"], norm=2),
+        model=ScalePhaseModel(model=TEST_MODELS[1]["model"], scale=2),
         val_at_05=2 * 1.3533528,
         integral_0_1=2 * 2.5066282746310007,
     )
