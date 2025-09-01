@@ -3,10 +3,14 @@ import pytest
 from numpy.testing import assert_allclose
 
 from okkie.modeling.models import (
+    AsymmetricGaussianNormPhaseModel,
     AsymmetricGaussianPhaseModel,
+    AsymmetricLorentzianNormPhaseModel,
     AsymmetricLorentzianPhaseModel,
     ConstantPhaseModel,
+    GaussianNormPhaseModel,
     GaussianPhaseModel,
+    LorentzianNormPhaseModel,
     LorentzianPhaseModel,
     ScalePhaseModel,
     TemplatePhaseModel,
@@ -63,6 +67,7 @@ TEST_MODELS = [
     ),
 ]
 
+
 TEST_MODELS.append(
     dict(
         name="comp1",
@@ -71,6 +76,7 @@ TEST_MODELS.append(
         integral_0_1=5.4101274349,
     )
 )
+
 
 TEST_MODELS.append(
     dict(
@@ -99,6 +105,56 @@ def test_models(phase):
         model.integral(phi_min, phi_max),
         phase["integral_0_1"],
     )
+
+    assert_allclose(model(0), model(1))
+
+
+TEST_NORM_MODELS = [
+    dict(
+        name="gaussian-norm",
+        model=GaussianNormPhaseModel(mean=0.3, sigma=0.1),
+        val_at_05=0.5399096651,
+    ),
+    dict(
+        name="lorentzian-norm",
+        model=LorentzianNormPhaseModel(mean=0.7, sigma=0.1),
+        val_at_05=0.7462730461,
+    ),
+    dict(
+        name="asymetric-gaussian-norm",
+        model=AsymmetricGaussianNormPhaseModel(
+            mean=0.45,
+            sigma_1=0.05,
+            sigma_2=0.085,
+        ),
+        val_at_05=4.9712870346,
+    ),
+    dict(
+        name="asymetric-lorentzian-norm",
+        model=AsymmetricLorentzianNormPhaseModel(
+            mean=0.1,
+            sigma_1=0.01,
+            sigma_2=0.1,
+        ),
+        val_at_05=0.3957378508,
+    ),
+]
+
+
+@pytest.mark.parametrize("phase", TEST_NORM_MODELS)
+def test_norm_models(phase):
+    model = phase["model"]
+
+    for p in model.parameters:
+        assert p.type == "phase"
+
+    phi = 0.5
+    value = model(phi)
+    assert_allclose(value, phase["val_at_05"])
+
+    phi_min = 0
+    phi_max = 1
+    assert_allclose(model.integral(phi_min, phi_max), 1.0)
 
     assert_allclose(model(0), model(1))
 
