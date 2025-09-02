@@ -228,13 +228,13 @@ class VectorizeEvaluate:
             out = func(**bound.arguments)
 
             # Final shape = P... x Q...
-            target_shape = ph_outer.shape[:-1] + Qshp
+            target_shape = Pshp + Qshp
             out = np.asarray(out, dtype=float)
             try:
                 out = np.broadcast_to(out, target_shape)
             except Exception as e:
                 raise ValueError(
-                    f"{func.__name__} must return an array broadcastable to shape {target_shape}, got {out.shape}"
+                    f"{func.__name__} must return array broadcastable to {target_shape}, got {out.shape}"
                 ) from e
             return out
 

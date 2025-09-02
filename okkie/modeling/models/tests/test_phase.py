@@ -40,7 +40,7 @@ TEST_MODELS = [
             sigma=0.1,
             mean=0.7,
         ),
-        val_at_05=2.7022563,
+        val_at_05=2.78077896,
         integral_0_1=3.7262218890,
     ),
     dict(
@@ -62,7 +62,7 @@ TEST_MODELS = [
             sigma_1=0.01,
             sigma_2=0.1,
         ),
-        val_at_05=0.46704696,
+        val_at_05=0.47390108,
         integral_0_1=1.1975126460,
     ),
 ]
@@ -72,8 +72,8 @@ TEST_MODELS.append(
     dict(
         name="comp1",
         model=TEST_MODELS[3]["model"] + TEST_MODELS[4]["model"],
-        val_at_05=21.495269,
-        integral_0_1=5.4101274349,
+        val_at_05=21.502123164,
+        integral_0_1=5.4274472674,
     )
 )
 

@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
     from typing import Any
 
+from .decorators import VectorizeEvaluate
 from .integral import (
     integrate_periodic_asymm_gaussian,
     integrate_periodic_asymm_lorentzian,
@@ -296,14 +297,12 @@ class ConstantPhaseModel(PhaseModel):
     const = Parameter("const", 1, interp="lin", scale_method="factor1")
 
     @staticmethod
-    def evaluate(
-        phase: float,
-        const: float,
-        period: float,
-        wrapping_truncation: int,
-    ) -> float:
-        """Evaluate the model (static function)."""
-        return np.ones(np.atleast_1d(phase).shape) * const
+    @VectorizeEvaluate(params_to_broadcast=("const",), provide_shifts=False)
+    def evaluate(phase, const, period, wrapping_truncation, *, _vmeta=None):
+        Pnd = _vmeta["phase_ndim"]
+        Qshp = _vmeta["param_shape"]
+        target = phase.shape[:-1] + Qshp
+        return np.broadcast_to(const, target)
 
     def integral(self, phase_min: float, phase_max: float) -> float:
         phase_min %= self.period
@@ -374,30 +373,26 @@ class LorentzianPhaseModel(PhaseModel):
     sigma = Parameter("sigma", 0.1)
 
     @staticmethod
+    @VectorizeEvaluate(
+        params_to_broadcast=("amplitude", "mean", "sigma"),
+        mod_by_period=("mean",),
+        clips={"sigma": (1e-300, None)},
+        provide_shifts=True,
+    )
     def evaluate(
-        phase: float,
-        amplitude: float,
-        mean: float,
-        sigma: float,
-        period: float,
-        wrapping_truncation: int,
-    ) -> float:
-        mean = mean % period
-        mean = mean.reshape((1,))  # Trick to pass in float or int
-        phase = phase % period
-        delta_phase = phase - mean
-        periodic_shifts = (
-            np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
-        )
-        delta_phase_wrapped = delta_phase[:, np.newaxis] + periodic_shifts
-
-        lorentzian = 1 / (1 + (delta_phase_wrapped / sigma) ** 2)
-
-        normalization = np.sum(1 / (1 + (periodic_shifts / sigma) ** 2))
-
-        values = amplitude * lorentzian.sum(axis=1) / normalization
-
-        return values
+        phase,
+        amplitude,
+        mean,
+        sigma,
+        period,
+        wrapping_truncation,
+        *,
+        shifts=None,
+        _vmeta=None,
+    ):
+        delta = (phase - mean)[..., None] + shifts
+        num = (1.0 / (1.0 + (delta / sigma[..., None]) ** 2)).sum(axis=-1)
+        return amplitude * num
 
     def to_norm(self) -> LorentzianNormPhaseModel:
         """Return the normalized version of the model."""
@@ -437,35 +432,28 @@ class AsymmetricLorentzianPhaseModel(PhaseModel):
     sigma_2 = Parameter("sigma_2", 0.1)
 
     @staticmethod
+    @VectorizeEvaluate(
+        params_to_broadcast=("amplitude", "mean", "sigma_1", "sigma_2"),
+        mod_by_period=("mean",),
+        clips={"sigma_1": (1e-300, None), "sigma_2": (1e-300, None)},
+        provide_shifts=True,
+    )
     def evaluate(
-        phase: float,
-        amplitude: float,
-        mean: float,
-        sigma_1: float,
-        sigma_2: float,
-        period: float,
-        wrapping_truncation: int,
-    ) -> float:
-        mean = mean % period
-        mean = mean.reshape((1,))  # Trick to pass in float or int
-        phase = phase % period
-        delta_phase = phase - mean
-        periodic_shifts = (
-            np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
-        )
-        delta_phase_wrapped = delta_phase[:, np.newaxis] + periodic_shifts
-
-        l1 = 1 / (1 + (delta_phase_wrapped / sigma_1) ** 2)
-        l2 = 1 / (1 + (delta_phase_wrapped / sigma_2) ** 2)
-        lorentzian = np.where(delta_phase_wrapped < 0, l1, l2)
-
-        norm_l1 = 1 / (1 + (periodic_shifts / sigma_1) ** 2)
-        norm_l2 = 1 / (1 + (periodic_shifts / sigma_2) ** 2)
-        normalization = np.sum((norm_l1 + norm_l2) / 2)
-
-        values = amplitude * lorentzian.sum(axis=1) / normalization
-
-        return values
+        phase,
+        amplitude,
+        mean,
+        sigma_1,
+        sigma_2,
+        period,
+        wrapping_truncation,
+        *,
+        shifts=None,
+        _vmeta=None,
+    ):
+        delta = (phase - mean)[..., None] + shifts
+        sig = np.where(delta < 0.0, sigma_1[..., None], sigma_2[..., None])
+        num = (1.0 / (1.0 + (delta / sig) ** 2)).sum(axis=-1)
+        return amplitude * num
 
     def to_norm(self) -> AsymmetricLorentzianNormPhaseModel:
         """Return the normalized version of the model."""
@@ -512,28 +500,26 @@ class GaussianPhaseModel(PhaseModel):
     sigma = Parameter("sigma", 0.1)
 
     @staticmethod
+    @VectorizeEvaluate(
+        params_to_broadcast=("amplitude", "mean", "sigma"),
+        mod_by_period=("mean",),
+        clips={"sigma": (1e-300, None)},
+        provide_shifts=True,
+    )
     def evaluate(
-        phase: float,
-        amplitude: float,
-        mean: float,
-        sigma: float,
-        period: float,
-        wrapping_truncation: int,
-    ) -> float:
-        mean = mean % period
-        mean = mean.reshape((1,))  # Trick to pass in float or int
-        phase = phase % period
-        delta_phase = phase - mean
-        periodic_shifts = (
-            np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
-        )
-        delta_phase_wrapped = delta_phase[:, np.newaxis] + periodic_shifts
-
-        gaussians = np.exp(-(delta_phase_wrapped**2) / (2 * sigma**2))
-
-        normalization = np.sum(np.exp(-(periodic_shifts**2) / (2 * sigma**2)))
-
-        return amplitude * gaussians.sum(axis=1) / normalization
+        phase,
+        amplitude,
+        mean,
+        sigma,
+        period,
+        wrapping_truncation,
+        *,
+        shifts=None,
+        _vmeta=None,
+    ):
+        delta = (phase - mean)[..., None] + shifts
+        num = np.exp(-0.5 * (delta / sigma[..., None]) ** 2).sum(axis=-1)
+        return amplitude * num
 
     def to_norm(self) -> GaussianNormPhaseModel:
         """Return the normalized version of the model."""
@@ -576,35 +562,28 @@ class AsymmetricGaussianPhaseModel(PhaseModel):
     sigma_2 = Parameter("sigma_2", 0.1)
 
     @staticmethod
+    @VectorizeEvaluate(
+        params_to_broadcast=("amplitude", "mean", "sigma_1", "sigma_2"),
+        mod_by_period=("mean",),
+        clips={"sigma_1": (1e-300, None), "sigma_2": (1e-300, None)},
+        provide_shifts=True,
+    )
     def evaluate(
-        phase: float,
-        amplitude: float,
-        mean: float,
-        sigma_1: float,
-        sigma_2: float,
-        period: float,
-        wrapping_truncation: int,
-    ) -> float:
-        mean = mean % period
-        mean = mean.reshape((1,))  # Trick to pass in float or int
-        phase = phase % period
-        delta_phase = phase - mean
-        periodic_shifts = (
-            np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
-        )
-        delta_phase_wrapped = delta_phase[:, np.newaxis] + periodic_shifts
-
-        g1 = np.exp(-(delta_phase_wrapped**2) / (2 * sigma_1**2))
-        g2 = np.exp(-(delta_phase_wrapped**2) / (2 * sigma_2**2))
-        gaussians = np.where(delta_phase_wrapped < 0, g1, g2)
-
-        norm = 0.5 * (
-            np.exp(-(periodic_shifts**2) / (2 * sigma_1**2))
-            + np.exp(-(periodic_shifts**2) / (2 * sigma_2**2))
-        )
-        normalization = np.sum(norm)
-
-        return amplitude * gaussians.sum(axis=1) / normalization
+        phase,
+        amplitude,
+        mean,
+        sigma_1,
+        sigma_2,
+        period,
+        wrapping_truncation,
+        *,
+        shifts=None,
+        _vmeta=None,
+    ):
+        delta = (phase - mean)[..., None] + shifts
+        sig = np.where(delta < 0.0, sigma_1[..., None], sigma_2[..., None])
+        num = np.exp(-0.5 * (delta / sig) ** 2).sum(axis=-1)
+        return amplitude * num
 
     def to_norm(self) -> AsymmetricGaussianNormPhaseModel:
         """Return the normalized version of the model."""
@@ -698,7 +677,9 @@ class TemplatePhaseModel(PhaseModel):
         shifted_phase = (phase + phase_shift) % period
         return self._evaluate((shifted_phase,), clip=True)
 
-    def to_norm(self, interp_kwargs: dict[str, Any] | None = None) -> TemplatePhaseModel:
+    def to_norm(
+        self, interp_kwargs: dict[str, Any] | None = None
+    ) -> TemplatePhaseModel:
         """Return the normalized version of the model."""
         interp_kwargs = interp_kwargs or {}
         norm = 1 / self.integral(0, self.period)
@@ -807,32 +788,31 @@ class GaussianNormPhaseModel(PhaseModel):
     sigma = Parameter("sigma", 0.1)
 
     @staticmethod
+    @VectorizeEvaluate(
+        params_to_broadcast=("mean", "sigma"),
+        mod_by_period=("mean",),
+        clips={"sigma": (1e-300, None)},
+        provide_shifts=True,
+    )
     def evaluate(
-        phase: float,
-        mean: float,
-        sigma: float,
-        period: float,
-        wrapping_truncation: int,
-    ) -> float:
-        mean = mean % period
-        mean = mean.reshape((1,))  # Trick to pass in float or int
-        phase = phase % period
-        delta_phase = phase - mean
-        periodic_shifts = (
-            np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
-        )
-        delta_phase_wrapped = delta_phase[:, np.newaxis] + periodic_shifts
-        num = np.exp(-0.5 * (delta_phase_wrapped / sigma) ** 2).sum(axis=1)
-        den = integrate_periodic_gaussian(
-            edge_min=0.0,
-            edge_max=period,
-            amplitude=1.0,
-            mean=mean,
-            sigma=sigma,
-            period=period,
-            truncation=wrapping_truncation,
-        )
-        den = np.clip(den, 1e-300, np.inf)
+        phase, mean, sigma, period, wrapping_truncation, *, shifts=None, _vmeta=None
+    ):
+        P = float(period)
+        K = int(wrapping_truncation)
+        Pnd = _vmeta["phase_ndim"]
+        Qshp = _vmeta["param_shape"]
+
+        delta = (phase - mean)[..., None] + shifts
+        num = np.exp(-0.5 * (delta / sigma[..., None]) ** 2).sum(axis=-1)
+
+        # Denominator in Q-shape
+        axes = tuple(range(Pnd))
+        mean_q = np.squeeze(mean, axis=axes)
+        sigma_q = np.squeeze(sigma, axis=axes)
+        den_q = integrate_periodic_gaussian(
+            0.0, P, amplitude=1.0, mean=mean_q, sigma=sigma_q, period=P, truncation=K
+        )  # Q...
+        den = np.clip(den_q, 1e-300, np.inf).reshape((1,) * Pnd + Qshp)
         return num / den
 
     def integral(self, phase_min: float, phase_max: float, **kwargs: Any) -> float:
@@ -867,35 +847,47 @@ class AsymmetricGaussianNormPhaseModel(PhaseModel):
     sigma_2 = Parameter("sigma_2", 0.1)
 
     @staticmethod
+    @VectorizeEvaluate(
+        params_to_broadcast=("mean", "sigma_1", "sigma_2"),
+        mod_by_period=("mean",),
+        clips={"sigma_1": (1e-300, None), "sigma_2": (1e-300, None)},
+        provide_shifts=True,
+    )
     def evaluate(
-        phase: float,
-        mean: float,
-        sigma_1: float,
-        sigma_2: float,
-        period: float,
-        wrapping_truncation: int,
-    ) -> float:
-        mean = mean % period
-        mean = mean.reshape((1,))  # Trick to pass in float or int
-        phase = phase % period
-        delta_phase = phase - mean
-        periodic_shifts = (
-            np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
-        )
-        delta_phase_wrapped = delta_phase[:, np.newaxis] + periodic_shifts
-        sig = np.where(delta_phase_wrapped < 0, sigma_1, sigma_2)
-        num = np.exp(-0.5 * (delta_phase_wrapped / sig) ** 2).sum(axis=1)
-        den = integrate_periodic_asymm_gaussian(
-            edge_min=0.0,
-            edge_max=period,
+        phase,
+        mean,
+        sigma_1,
+        sigma_2,
+        period,
+        wrapping_truncation,
+        *,
+        shifts=None,
+        _vmeta=None,
+    ):
+        P = float(period)
+        K = int(wrapping_truncation)
+        Pnd = _vmeta["phase_ndim"]
+        Qshp = _vmeta["param_shape"]
+
+        delta = (phase - mean)[..., None] + shifts
+        sig = np.where(delta < 0.0, sigma_1[..., None], sigma_2[..., None])
+        num = np.exp(-0.5 * (delta / sig) ** 2).sum(axis=-1)
+
+        axes = tuple(range(Pnd))
+        mean_q = np.squeeze(mean, axis=axes)
+        s1_q = np.squeeze(sigma_1, axis=axes)
+        s2_q = np.squeeze(sigma_2, axis=axes)
+        den_q = integrate_periodic_asymm_gaussian(
+            0.0,
+            P,
             amplitude=1.0,
-            mean=mean,
-            sigma_1=sigma_1,
-            sigma_2=sigma_2,
-            period=period,
-            truncation=wrapping_truncation,
+            mean=mean_q,
+            sigma_1=s1_q,
+            sigma_2=s2_q,
+            period=P,
+            truncation=K,
         )
-        den = np.clip(den, 1e-300, np.inf)
+        den = np.clip(den_q, 1e-300, np.inf).reshape((1,) * Pnd + Qshp)
         return num / den
 
     def integral(self, phase_min: float, phase_max: float, **kwargs: Any) -> float:
@@ -931,32 +923,30 @@ class LorentzianNormPhaseModel(PhaseModel):
     sigma = Parameter("sigma", 0.1)
 
     @staticmethod
+    @VectorizeEvaluate(
+        params_to_broadcast=("mean", "sigma"),
+        mod_by_period=("mean",),
+        clips={"sigma": (1e-300, None)},
+        provide_shifts=True,
+    )
     def evaluate(
-        phase: float,
-        mean: float,
-        sigma: float,
-        period: float,
-        wrapping_truncation: int,
-    ) -> float:
-        mean = mean % period
-        mean = mean.reshape((1,))  # Trick to pass in float or int
-        phase = phase % period
-        delta_phase = phase - mean
-        periodic_shifts = (
-            np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
+        phase, mean, sigma, period, wrapping_truncation, *, shifts=None, _vmeta=None
+    ):
+        P = float(period)
+        K = int(wrapping_truncation)
+        Pnd = _vmeta["phase_ndim"]
+        Qshp = _vmeta["param_shape"]
+
+        delta = (phase - mean)[..., None] + shifts
+        num = (1.0 / (1.0 + (delta / sigma[..., None]) ** 2)).sum(axis=-1)
+
+        axes = tuple(range(Pnd))
+        mean_q = np.squeeze(mean, axis=axes)
+        sigma_q = np.squeeze(sigma, axis=axes)
+        den_q = integrate_periodic_lorentzian(
+            0.0, P, amplitude=1.0, mean=mean_q, sigma=sigma_q, period=P, truncation=K
         )
-        delta_phase_wrapped = delta_phase[:, np.newaxis] + periodic_shifts
-        num = (1.0 / (1.0 + (delta_phase_wrapped / sigma) ** 2)).sum(axis=1)
-        den = integrate_periodic_lorentzian(
-            edge_min=0.0,
-            edge_max=period,
-            amplitude=1.0,
-            mean=mean,
-            sigma=sigma,
-            period=period,
-            truncation=wrapping_truncation,
-        )
-        den = np.clip(den, 1e-300, np.inf)
+        den = np.clip(den_q, 1e-300, np.inf).reshape((1,) * Pnd + Qshp)
         return num / den
 
     def integral(self, phase_min: float, phase_max: float, **kwargs: Any) -> float:
@@ -991,35 +981,47 @@ class AsymmetricLorentzianNormPhaseModel(PhaseModel):
     sigma_2 = Parameter("sigma_2", 0.1)
 
     @staticmethod
+    @VectorizeEvaluate(
+        params_to_broadcast=("mean", "sigma_1", "sigma_2"),
+        mod_by_period=("mean",),
+        clips={"sigma_1": (1e-300, None), "sigma_2": (1e-300, None)},
+        provide_shifts=True,
+    )
     def evaluate(
-        phase: float,
-        mean: float,
-        sigma_1: float,
-        sigma_2: float,
-        period: float,
-        wrapping_truncation: int,
-    ) -> float:
-        mean = mean % period
-        mean = mean.reshape((1,))  # Trick to pass in float or int
-        phase = phase % period
-        delta_phase = phase - mean
-        periodic_shifts = (
-            np.arange(-wrapping_truncation, wrapping_truncation + 1) * period
-        )
-        delta_phase_wrapped = delta_phase[:, np.newaxis] + periodic_shifts
-        sig = np.where(delta_phase_wrapped < 0, sigma_1, sigma_2)
-        num = (1.0 / (1.0 + (delta_phase_wrapped / sig) ** 2)).sum(axis=1)
-        den = integrate_periodic_asymm_lorentzian(
-            edge_min=0.0,
-            edge_max=period,
+        phase,
+        mean,
+        sigma_1,
+        sigma_2,
+        period,
+        wrapping_truncation,
+        *,
+        shifts=None,
+        _vmeta=None,
+    ):
+        P = float(period)
+        K = int(wrapping_truncation)
+        Pnd = _vmeta["phase_ndim"]
+        Qshp = _vmeta["param_shape"]
+
+        delta = (phase - mean)[..., None] + shifts
+        sig = np.where(delta < 0.0, sigma_1[..., None], sigma_2[..., None])
+        num = (1.0 / (1.0 + (delta / sig) ** 2)).sum(axis=-1)
+
+        axes = tuple(range(Pnd))
+        mean_q = np.squeeze(mean, axis=axes)
+        s1_q = np.squeeze(sigma_1, axis=axes)
+        s2_q = np.squeeze(sigma_2, axis=axes)
+        den_q = integrate_periodic_asymm_lorentzian(
+            0.0,
+            P,
             amplitude=1.0,
-            mean=mean,
-            sigma_1=sigma_1,
-            sigma_2=sigma_2,
-            period=period,
-            truncation=wrapping_truncation,
+            mean=mean_q,
+            sigma_1=s1_q,
+            sigma_2=s2_q,
+            period=P,
+            truncation=K,
         )
-        den = np.clip(den, 1e-300, np.inf)
+        den = np.clip(den_q, 1e-300, np.inf).reshape((1,) * Pnd + Qshp)
         return num / den
 
     def integral(self, phase_min: float, phase_max: float, **kwargs: Any) -> float:
