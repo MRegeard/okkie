@@ -717,13 +717,49 @@ class ScalePhaseModel(PhaseModel):
 
     def evaluate(
         self,
-        phase: float,
-        scale: float,
+        phase,
+        scale,
         period: float,
         wrapping_truncation: int,
-        **kwargs: Any,
-    ) -> float:
-        return scale * self.model(phase)
+        **kwargs,
+    ) -> np.array:
+        """
+        Outer-vectorized wrapper:
+          - phase : array-like, shape P...
+          - scale : scalar or array-like, part of param grid Q...
+          - kwargs: inner model parameters (scalar/arrays), together define Q...
+          -> returns shape P... × Q...
+        """
+        phase = np.asarray(phase, float)
+        Pshp = phase.shape
+        Pnd = phase.ndim
+
+        to_broadcast = [np.asarray(scale, float)]
+        kw_names = list(kwargs.keys())
+        for name in kw_names:
+            to_broadcast.append(np.asarray(kwargs[name], float))
+
+        if to_broadcast:
+            bcast = np.broadcast_arrays(*to_broadcast)
+            scale_b = bcast[0]
+            j = 1
+            for name in kw_names:
+                kwargs[name] = bcast[j]
+                j += 1
+            Qshp = scale_b.shape
+        else:
+            scale_b = np.asarray(scale, float)
+            Qshp = ()
+
+        scale_rs = scale_b.reshape((1,) * Pnd + Qshp)
+
+        vals = self.model.evaluate(
+            phase=phase,
+            period=period,
+            wrapping_truncation=wrapping_truncation,
+            **kwargs,
+        )
+        return scale_rs * vals
 
     def integral(
         self,
