@@ -5,8 +5,6 @@ from gammapy.modeling.models import DatasetModels, Models
 from gammapy.stats import (
     CashCountsStatistic,
     WStatCountsStatistic,
-    cash,
-    cash_sum_cython,
 )
 from gammapy.utils.scripts import make_name
 
@@ -115,23 +113,6 @@ class CountsDataset(Dataset):
             npred = Map.from_geom(self._geom, data=data)
             total_npred.stack(npred)
         return total_npred
-
-    def stat_sum(self):
-        # TODO: implement prior
-        """Total statistic function value given the current parameters."""
-        counts = self.counts.data.astype(float)
-        npred = self.npred().data.astype(float)
-
-        if self.mask is not None:
-            mask = ~(self.mask.data == False)  # noqa: E712
-            counts = counts[mask]
-            npred = npred[mask]
-
-        return cash_sum_cython(counts.ravel(), npred.ravel())
-
-    def stat_array(self):
-        """Statistic function value per bin given the current model parameters."""
-        return cash(n_on=self.counts.data, mu_on=self.npred().data)
 
     @classmethod
     def create(cls, geom, **kwargs):
