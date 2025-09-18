@@ -111,7 +111,7 @@ class CountsDataset(Dataset):
         total_npred = Map.from_geom(self._geom)
 
         for model in self.models:
-            data = model(phase=self.counts.geom.axes["phase"].center).value
+            data = model(phase=self.counts.geom.axes["phase"].center)
             npred = Map.from_geom(self._geom, data=data)
             total_npred.stack(npred)
         return total_npred
