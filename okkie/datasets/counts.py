@@ -29,7 +29,6 @@ class CountsDataset(Dataset):
     """
 
     tag = "CountDataset"
-    stat_type = "cash"
 
     def __init__(
         self,
@@ -39,6 +38,7 @@ class CountsDataset(Dataset):
         meta_table=None,
         mask_fit=None,
         mask_safe=None,
+        stat_type="cash",
     ):
         self.counts = counts
         self.models = models
@@ -46,6 +46,8 @@ class CountsDataset(Dataset):
         self.meta_table = meta_table
         self.mask_fit = mask_fit
         self.mask_safe = mask_safe
+
+        self.stat_type = stat_type
 
     @property
     def models(self) -> Models:
