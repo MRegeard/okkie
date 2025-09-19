@@ -108,11 +108,11 @@ class CountsDataset(Dataset):
 
     def npred(self):
         """Predicted counts map."""
-        total_npred = Map.from_geom(self._geom)
+        total_npred = Map.from_geom(self._geom, dtype=np.float64)
 
         for model in self.models:
-            data = model(phase=self.counts.geom.axes["phase"].center)
-            npred = Map.from_geom(self._geom, data=data)
+            data = model(phase=self.counts.geom.axes["phase"].center).value
+            npred = Map.from_geom(self._geom, data=data, dtype=np.float64)
             total_npred.stack(npred)
         return total_npred
 
