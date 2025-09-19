@@ -60,7 +60,7 @@ class PhaseModel(ModelBase):
         kwargs = {par.name: par.quantity.value for par in self.parameters}
         kwargs["period"] = self.period
         kwargs["wrapping_truncation"] = self.wrapping_truncation
-        return self.evaluate(phase, **kwargs)
+        return u.Quantity(self.evaluate(phase.value, **kwargs), "")
 
     def __add__(self, model: PhaseModel | float) -> CompoundPhaseModel:
         if not isinstance(model, PhaseModel):
